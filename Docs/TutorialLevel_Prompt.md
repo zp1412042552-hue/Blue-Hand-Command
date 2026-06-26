@@ -26,16 +26,16 @@ ZONE 1 — GESTURE TRAINING (leftmost section, approximately 8m x 10m):
 [区域 1 — 手势训练（最左侧，约 8×10 米）]
 
 Objects list:
-- Wall-mounted gesture instruction panel: A large white rectangular sign board on the back wall, printed with 6 hand-gesture icons in order: (1) single index finger up ☝️, (2) two fingers ✌️, (3) finger pointing down 👇, (4) palm facing forward palm up ✋, (5) both palms pushing forward 🤚, (6) fist pulled back ✊. Each icon has a number below it (1-6) and Chinese text label. The icons are drawn in neon blue (#00D4FF) on white background.
-- Recognition feedback light bar: A row of 6 circular LED lights mounted below the gesture panel, one under each icon. Red when not recognized, green when the gesture is matched. Simple flat circles.
+- Wall-mounted gesture instruction panel: A large white rectangular sign board on the back wall, printed with 5 hand-gesture icons in order: (1) finger pointing down 👇, (2) fist facing forward ✊, (3) palm facing forward ✋, (4) both palms pushing forward 🤚, (5) fist pulled back to chest ✊. Each icon has a number below it (1-5) and Chinese text label: 移动位置, 破门, 加强警戒, 禁止开火, 集合保卫. The icons are drawn in neon blue (#00D4FF) on white background.
+- Recognition feedback light bar: A row of 5 circular LED lights mounted below the gesture panel, one under each icon. Red when not recognized, green when the gesture is matched. Simple flat circles.
 - Two training mannequins: Simple low-poly human-shaped dummies, plain white color with no face features, standing side by side in the center of the zone. One has a blue shoulder stripe (Teammate A), one has a yellow shoulder stripe (Teammate B). Both have simplified rifle-shaped accessory across chest.
 - A flat screen display on a thin pole stand: Floating wall monitor style, thin rectangular screen showing large text "GESTURE RECOGNITION" at top, with a gesture icon preview area below.
 - Floor marking: A white painted semicircle on the floor about 1.5m radius, labeled "STAND HERE" (站位) in the center, indicating where the player should stand.
 - Simple training barrier: One waist-high orange traffic barrier (like construction barrier) separating this zone from the next.
 
 [物体列表：
-- 墙上手势指示板：后墙上的大型白色标志板，印有 6 个手势图标——(1)食指指天、(2)V字、(3)食指指地、(4)手掌竖起、(5)双掌前推、(6)握拳拉回。每个图标下有数字编号 1-6 和中文文字标签。图标为霓虹蓝色 #00D4FF，白底。
-- 识别反馈灯条：手势板下方的 6 个圆形 LED 灯，每个图标下一个。未识别时红色，识别成功时绿色。简单的扁平圆圈。
+- 墙上手势指示板：后墙上的大型白色标志板，印有 5 个手势图标——(1)食指指地、(2)握拳朝前、(3)手掌竖起、(4)双掌前推、(5)握拳拉回胸前。每个图标下有数字编号 1-5 和中文文字标签：移动位置、破门、加强警戒、禁止开火、集合保卫。图标为霓虹蓝色 #00D4FF，白底。
+- 识别反馈灯条：手势板下方的 5 个圆形 LED 灯，每个图标下一个。未识别时红色，识别成功时绿色。简单的扁平圆圈。
 - 两个训练假人：简单的低多边形人体形状假人，纯白色无面部特征，并排站在区域中央。一个有蓝色肩带（队友 A），一个有黄色肩带（队友 B）。胸前有简化步枪形状配件。
 - 立式平板显示器：细杆支架上的壁挂式屏幕，薄矩形屏幕，顶部显示大字"手势识别"，下方有手势图标预览区。
 - 地面标记：地面上的白色半圆，半径约 1.5 米，中心标有"站位"，指示玩家站立位置。
@@ -147,7 +147,7 @@ Clean low-poly with flat shading, faint dark edge outlines visible on all object
 ### 区域 ① 特写
 
 ```text
-Low-poly stylized close-up of Zone 1 — Gesture Training Area. VR first-person view standing at the "STAND HERE" floor marker. Directly ahead is the large wall-mounted gesture instruction panel showing 6 neon blue hand gesture icons: single finger up, two fingers up, finger down, palm up, palms forward, fist pull-back. Below each icon is a circular LED light — the second one glowing green. Two white training mannequins stand to the right, one with blue shoulder stripe (Teammate A) and one with yellow (Teammate B). A thin-pole flat screen monitor on the left shows "手势识别" with a large gesture preview. Orange barrier separates this zone. Neon blue(#00D4FF) glowing hands visible at bottom of frame making a two-finger gesture. Clean low-poly flat shading, Quest VR style, cartoon aesthetic, no textures.
+Low-poly stylized close-up of Zone 1 — Gesture Training Area. VR first-person view standing at the "STAND HERE" floor marker. Directly ahead is the large wall-mounted gesture instruction panel showing 5 neon blue hand gesture icons: finger pointing down, fist facing forward, palm up, palms pushing forward, fist pulled to chest. Below each icon is a circular LED light — the third one glowing green. Two white training mannequins stand to the right, one with blue shoulder stripe (Teammate A) and one with yellow (Teammate B). A thin-pole flat screen monitor on the left shows "手势识别" with a large gesture preview. Orange barrier separates this zone. Neon blue(#00D4FF) glowing hands visible at bottom of frame making a pointing-down gesture. Clean low-poly flat shading, Quest VR style, cartoon aesthetic, no textures.
 ```
 
 ### 区域 ② 特写
@@ -165,7 +165,7 @@ Low-poly stylized close-up of Zone 3 — Breach Training Area. VR perspective vi
 ### 区域 ④ 特写
 
 ```text
-Low-poly stylized close-up of Zone 4 — Final Exam Area. VR perspective view from corridor entrance. Short corridor with two open doorways on left and right. Left doorway has red sign "ROOM 1" — inside visible one dark gray enemy dummy standing still holding a rifle. Right doorway has red sign "ROOM 2" — inside visible two enemy dummies in corners. A large wall-mounted timer screen on the corridor wall showing "12:45" in red LED digits. A white scoreboard beside it with "BEST TIME" and three times written in marker style. A folded target mechanism box on the wall. Two metal folding chairs against the wall. Green zone completion pole at the far end, currently off. Player's neon blue hands visible making a two-finger gesture selecting a teammate. Clean low-poly flat shading, cartoon aesthetic.
+Low-poly stylized close-up of Zone 4 — Final Exam Area. VR perspective view from corridor entrance. Short corridor with two open doorways on left and right. Left doorway has red sign "ROOM 1" — inside visible one dark gray enemy dummy standing still holding a rifle. Right doorway has red sign "ROOM 2" — inside visible two enemy dummies in corners. A large wall-mounted timer screen on the corridor wall showing "12:45" in red LED digits. A white scoreboard beside it with "BEST TIME" and three times written in marker style. A folded target mechanism box on the wall. Two metal folding chairs against the wall. Green zone completion pole at the far end, currently off. Player's neon blue hands visible making a pointing gesture directing a teammate. Clean low-poly flat shading, cartoon aesthetic.
 ```
 
 ---
