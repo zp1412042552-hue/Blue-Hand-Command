@@ -1,0 +1,49 @@
+# Unreal Engine Generated Files
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+*.sln
+*.suo
+*.sdf
+*.opensdf
+*.VC.opendb
+*.vb
+*.db
+*.db-wal
+*.db-shm
+*.xcodeproj
+*.xcworkspace
+*.xcuserdata
+*.o
+*.obj
+*.exe
+*.pdb
+*.ilk
+*.log
+*.Manifest
+*.pdb
+
+# VS Code
+.vscode/
+
+# Rider
+.idea/
+*.sln.DotSettings.user
+
+# Text files
+*.sublime-project
+*.sublime-workspace
+
+# Project-specific ignores
+Content/Paks/
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
