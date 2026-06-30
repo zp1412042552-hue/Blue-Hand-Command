@@ -67,7 +67,13 @@ public:
 	FFingerExtensionPose LastFingerPose;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float RecordedHandPoseConfidenceFloor = 0.5f;
+	float RecordedHandPoseConfidenceFloor = 0.35f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float RecordedFingerPoseConfidenceFloor = 0.72f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float RecordedGestureConfidenceMargin = 0.05f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Gesture")
 	float LastRecordedHandPoseConfidence = 0.0f;
@@ -75,16 +81,24 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Gesture")
 	float LastRecordedHandPoseError = 0.0f;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Gesture")
+	float LastRecordedFingerPoseConfidence = 0.0f;
+
 private:
 	void LoadRecordedGestureProfile();
 	void UpdateCandidate(ECommandGesture Candidate, float DeltaTime);
-	ECommandGesture ClassifyHandPose(const FHandPose& Pose, float* OutBestConfidence = nullptr, float* OutBestError = nullptr) const;
+	ECommandGesture ClassifyHandPose(const FHandPose& Pose, const FFingerExtensionPose& FingerPose, float* OutBestConfidence = nullptr, float* OutBestError = nullptr, float* OutBestFingerConfidence = nullptr) const;
 	bool PollMetaHandPose(FHandPose& OutHandPose, FFingerExtensionPose* OutFingerPose) const;
 	FRotator GetRecognizerWristRotator() const;
 	static float Clamp01(float Value);
+	static float ComputeFingerPoseConfidence(const FFingerExtensionPose& ReferencePose, const FFingerExtensionPose& Pose);
 
 	FHandPose RecordedSelectAHandPose;
 	FHandPose RecordedSelectBHandPose;
+	FFingerExtensionPose RecordedSelectAFingerPose;
+	FFingerExtensionPose RecordedSelectBFingerPose;
 	bool bHasRecordedSelectAHandPose = false;
 	bool bHasRecordedSelectBHandPose = false;
+	bool bHasRecordedSelectAFingerPose = false;
+	bool bHasRecordedSelectBFingerPose = false;
 };

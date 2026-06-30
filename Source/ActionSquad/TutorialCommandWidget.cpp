@@ -10,9 +10,9 @@
 
 namespace ActionSquadTutorialStyle
 {
-	static const FLinearColor Background = FLinearColor(0.015f, 0.032f, 0.045f, 0.94f);
-	static const FLinearColor SurfaceFill = FLinearColor(0.025f, 0.060f, 0.078f, 0.94f);
-	static const FLinearColor SurfaceOutline = FLinearColor(0.22f, 0.74f, 0.96f, 0.72f);
+	static const FLinearColor Background = FLinearColor(0.015f, 0.032f, 0.045f, 0.60f);
+	static const FLinearColor SurfaceFill = FLinearColor(0.025f, 0.060f, 0.078f, 0.60f);
+	static const FLinearColor SurfaceOutline = FLinearColor(0.22f, 0.74f, 0.96f, 0.60f);
 	static const FLinearColor TitleColor = FLinearColor(0.92f, 0.98f, 1.0f, 1.0f);
 	static const FLinearColor HighlightColor = FLinearColor(0.08f, 0.82f, 1.0f, 1.0f);
 	static const FLinearColor BodyColor = FLinearColor(0.88f, 0.94f, 0.97f, 0.97f);
