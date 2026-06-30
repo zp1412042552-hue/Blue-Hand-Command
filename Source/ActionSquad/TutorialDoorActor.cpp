@@ -1,0 +1,87 @@
+#include "TutorialDoorActor.h"
+
+#include "Components/StaticMeshComponent.h"
+#include "Components/TextRenderComponent.h"
+#include "UObject/ConstructorHelpers.h"
+
+ATutorialDoorActor::ATutorialDoorActor()
+{
+	PrimaryActorTick.bCanEverTick = false;
+
+	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
+	SetRootComponent(SceneRoot);
+
+	DoorMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DoorMesh"));
+	DoorMesh->SetupAttachment(SceneRoot);
+	DoorMesh->SetMobility(EComponentMobility::Movable);
+	DoorMesh->SetCollisionProfileName(TEXT("BlockAll"));
+	DoorMesh->ComponentTags.Add(TEXT("Door"));
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (CubeMesh.Succeeded())
+	{
+		DoorMesh->SetStaticMesh(CubeMesh.Object);
+		DoorMesh->SetRelativeScale3D(FVector(0.12f, 1.0f, 2.1f));
+		DoorMesh->SetRelativeLocation(FVector(0.0f, 0.0f, 105.0f));
+	}
+
+	DoorLabel = CreateDefaultSubobject<UTextRenderComponent>(TEXT("DoorLabel"));
+	DoorLabel->SetupAttachment(SceneRoot);
+	DoorLabel->SetRelativeLocation(FVector(0.0f, -70.0f, 235.0f));
+	DoorLabel->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
+	DoorLabel->SetText(FText::FromString(TEXT("DOOR")));
+	DoorLabel->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
+	DoorLabel->SetWorldSize(28.0f);
+	DoorLabel->SetTextRenderColor(FColor(220, 235, 245));
+}
+
+void ATutorialDoorActor::SetDoorState(ETutorialDoorState NewState)
+{
+	DoorState = NewState;
+
+	if (!DoorLabel)
+	{
+		return;
+	}
+
+	switch (DoorState)
+	{
+	case ETutorialDoorState::Closed:
+		DoorLabel->SetText(FText::FromString(TEXT("LOCKED")));
+		DoorLabel->SetTextRenderColor(FColor(235, 60, 60));
+		break;
+	case ETutorialDoorState::Targeted:
+		DoorLabel->SetText(FText::FromString(TEXT("BREACH")));
+		DoorLabel->SetTextRenderColor(FColor(255, 190, 55));
+		break;
+	case ETutorialDoorState::Breached:
+		DoorLabel->SetText(FText::FromString(TEXT("OPEN")));
+		DoorLabel->SetTextRenderColor(FColor(75, 235, 105));
+		break;
+	default:
+		break;
+	}
+}
+
+void ATutorialDoorActor::BreachFrom(const FVector& BreacherLocation)
+{
+	SetDoorState(ETutorialDoorState::Breached);
+
+	if (!DoorMesh)
+	{
+		return;
+	}
+
+	DoorMesh->SetSimulatePhysics(true);
+	DoorMesh->SetCollisionProfileName(TEXT("PhysicsActor"));
+
+	FVector Direction = DoorMesh->GetComponentLocation() - BreacherLocation;
+	Direction.Z = 0.0f;
+	if (!Direction.Normalize())
+	{
+		Direction = GetActorForwardVector();
+	}
+
+	const FVector Impulse = Direction * BreachImpulse + FVector(0.0f, 0.0f, BreachUpImpulse);
+	DoorMesh->AddImpulse(Impulse, NAME_None, true);
+}

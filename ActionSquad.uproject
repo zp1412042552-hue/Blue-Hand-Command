@@ -1,10 +1,38 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.4",
+	"EngineAssociation": "UE5.4",
 	"Category": "",
 	"Description": "",
-	"Modules": [],
+	"Modules": [
+		{
+			"Name": "ActionSquad",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
 	"Plugins": [
+		{
+			"Name": "OculusXR",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64",
+				"Android"
+			],
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/8313d8d7e7cf4e03a33e79eb757bccba"
+		},
+		{
+			"Name": "OculusUtils",
+			"Enabled": true
+		},
+		{
+			"Name": "OculusHandTools",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64",
+				"Mac",
+				"Android"
+			]
+		},
 		{
 			"Name": "Bridge",
 			"Enabled": false
@@ -12,6 +40,13 @@
 		{
 			"Name": "MetaHumanProjectUtilities",
 			"Enabled": false
+		},
+		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
 		}
 	]
 }

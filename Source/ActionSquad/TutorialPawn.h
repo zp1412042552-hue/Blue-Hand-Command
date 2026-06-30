@@ -1,0 +1,98 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "ActionSquadTypes.h"
+#include "GameFramework/Pawn.h"
+#include "TutorialPawn.generated.h"
+
+class ATutorialInstructionActor;
+class ATutorialTeamMemberActor;
+class UCameraComponent;
+class UCommandGestureComponent;
+class UMotionControllerComponent;
+class UOculusXRHandComponent;
+class UCapsuleComponent;
+
+UCLASS(Blueprintable)
+class ACTIONSQUAD_API ATutorialPawn : public APawn
+{
+	GENERATED_BODY()
+
+public:
+	ATutorialPawn();
+
+	virtual void BeginPlay() override;
+	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+
+	UFUNCTION(BlueprintCallable, Category = "Action Squad|Tutorial")
+	void SelectTeam(ESelectedTeamTarget Target);
+
+	UFUNCTION(BlueprintCallable, Category = "Action Squad|Tutorial")
+	void SpawnTutorialActors();
+
+	UFUNCTION(BlueprintCallable, Category = "Action Squad|Tutorial")
+	bool CommandSelectedTeamToPointedLocation();
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Components")
+	TObjectPtr<UCapsuleComponent> BodyCollision;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Components")
+	TObjectPtr<USceneComponent> SceneRoot;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Components")
+	TObjectPtr<USceneComponent> VROrigin;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Components")
+	TObjectPtr<UCameraComponent> Camera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Components")
+	TObjectPtr<UMotionControllerComponent> LeftHandTrackingRoot;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Components")
+	TObjectPtr<UMotionControllerComponent> RightHandTrackingRoot;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Components")
+	TObjectPtr<UOculusXRHandComponent> LeftHandMesh;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Components")
+	TObjectPtr<UOculusXRHandComponent> RightHandMesh;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Components")
+	TObjectPtr<UCommandGestureComponent> CommandGesture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Tutorial")
+	TSubclassOf<ATutorialTeamMemberActor> TeamMemberClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Tutorial")
+	TSubclassOf<ATutorialInstructionActor> TutorialInstructionClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Tutorial")
+	FVector TeamAOffset = FVector(240.0f, -120.0f, 0.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Tutorial")
+	FVector TeamBOffset = FVector(240.0f, 120.0f, 0.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Command")
+	float CommandTraceDistance = 1200.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Tutorial")
+	TObjectPtr<ATutorialTeamMemberActor> TeamA;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Tutorial")
+	TObjectPtr<ATutorialTeamMemberActor> TeamB;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Tutorial")
+	TObjectPtr<ATutorialInstructionActor> TutorialInstruction;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Tutorial")
+	ESelectedTeamTarget CurrentSelectedTeam = ESelectedTeamTarget::None;
+
+private:
+	UFUNCTION()
+	void HandleCommandGestureRecognized(ECommandGesture Gesture);
+
+	void TestSelectA();
+	void TestSelectB();
+	void TestMoveSelectedTeam();
+	void ConfigureHandVisuals();
+};

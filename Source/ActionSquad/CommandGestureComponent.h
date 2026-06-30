@@ -1,0 +1,90 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "ActionSquadTypes.h"
+#include "Components/ActorComponent.h"
+#include "HandPose.h"
+#include "CommandGestureComponent.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCommandGestureRecognized, ECommandGesture, Gesture);
+
+USTRUCT(BlueprintType)
+struct FFingerExtensionPose
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Finger Pose", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float Thumb = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Finger Pose", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float Index = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Finger Pose", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float Middle = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Finger Pose", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float Ring = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Finger Pose", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float Pinky = 0.0f;
+};
+
+UCLASS(ClassGroup = (ActionSquad), meta = (BlueprintSpawnableComponent))
+class ACTIONSQUAD_API UCommandGestureComponent : public UActorComponent
+{
+	GENERATED_BODY()
+
+public:
+	UCommandGestureComponent();
+
+	virtual void BeginPlay() override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+	UFUNCTION(BlueprintCallable, Category = "Action Squad|Gesture")
+	void SubmitFingerExtensionPose(const FFingerExtensionPose& Pose);
+
+	UFUNCTION(BlueprintCallable, Category = "Action Squad|Gesture")
+	void ForceRecognizeGesture(ECommandGesture Gesture);
+
+	bool GetCurrentHandPose(FHandPose& OutHandPose, FFingerExtensionPose* OutFingerPose = nullptr) const;
+
+	UPROPERTY(BlueprintAssignable, Category = "Action Squad|Gesture")
+	FOnCommandGestureRecognized OnCommandGestureRecognized;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture")
+	bool bEnableMetaHandPolling = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture", meta = (ClampMin = "0.0", Units = "s"))
+	float RequiredHoldSeconds = 0.5f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Gesture")
+	ECommandGesture StableGesture = ECommandGesture::None;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Gesture")
+	float StableGestureSeconds = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Gesture")
+	FFingerExtensionPose LastFingerPose;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float RecordedHandPoseConfidenceFloor = 0.5f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Gesture")
+	float LastRecordedHandPoseConfidence = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Gesture")
+	float LastRecordedHandPoseError = 0.0f;
+
+private:
+	void LoadRecordedGestureProfile();
+	void UpdateCandidate(ECommandGesture Candidate, float DeltaTime);
+	ECommandGesture ClassifyHandPose(const FHandPose& Pose, float* OutBestConfidence = nullptr, float* OutBestError = nullptr) const;
+	bool PollMetaHandPose(FHandPose& OutHandPose, FFingerExtensionPose* OutFingerPose) const;
+	FRotator GetRecognizerWristRotator() const;
+	static float Clamp01(float Value);
+
+	FHandPose RecordedSelectAHandPose;
+	FHandPose RecordedSelectBHandPose;
+	bool bHasRecordedSelectAHandPose = false;
+	bool bHasRecordedSelectBHandPose = false;
+};
