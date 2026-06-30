@@ -19,7 +19,7 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Action Squad|Command")
-	void ShowMarker(ESelectedTeamTarget Target, const FVector& Location, const FVector& SurfaceNormal, float Progress);
+	void ShowMarker(ESelectedTeamTarget Target, const FVector& Location, const FVector& SurfaceNormal, const FVector& AimDirection, float Progress);
 
 	UFUNCTION(BlueprintCallable, Category = "Action Squad|Command")
 	void HideMarker();
@@ -35,6 +35,7 @@ public:
 
 private:
 	FVector MarkerNormal = FVector::UpVector;
+	FVector MarkerForward = FVector::ForwardVector;
 	ESelectedTeamTarget DisplayTarget = ESelectedTeamTarget::None;
 	float HoldProgress = 0.0f;
 };

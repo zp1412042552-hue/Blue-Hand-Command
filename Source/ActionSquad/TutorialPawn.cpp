@@ -288,6 +288,7 @@ void ATutorialPawn::UpdateCommandPreview(float DeltaSeconds)
 			MarkerTarget,
 			Hit.ImpactPoint,
 			Hit.ImpactNormal,
+			GetCommandAimDirection(),
 			CommandHoldSeconds > KINDA_SMALL_NUMBER ? PreviewHoldSeconds / CommandHoldSeconds : 1.0f);
 	}
 
@@ -330,6 +331,17 @@ bool ATutorialPawn::TraceCommandTarget(FHitResult& OutHit) const
 
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(ActionSquadCommandTrace), false, this);
 	return World->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, QueryParams);
+}
+
+FVector ATutorialPawn::GetCommandAimDirection() const
+{
+	USceneComponent* TraceSource = RightHandTrackingRoot ? Cast<USceneComponent>(RightHandTrackingRoot) : nullptr;
+	if (!TraceSource || !TraceSource->IsRegistered())
+	{
+		TraceSource = Camera;
+	}
+
+	return TraceSource ? TraceSource->GetForwardVector() : GetActorForwardVector();
 }
 
 bool ATutorialPawn::IssueCommandAtHit(const FHitResult& Hit)

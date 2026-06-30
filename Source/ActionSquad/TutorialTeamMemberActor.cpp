@@ -326,15 +326,25 @@ void ATutorialTeamMemberActor::UpdateCommandMovement(float DeltaSeconds)
 	}
 
 	const float Distance = FVector::Dist2D(GetActorLocation(), MoveTargetLocation);
-	if (Distance > AcceptanceRadius)
+	const float StopRadius = FMath::Max(AcceptanceRadius, GetCapsuleComponent() ? GetCapsuleComponent()->GetScaledCapsuleRadius() * 1.5f : AcceptanceRadius);
+	if (Distance > StopRadius)
 	{
 		return;
 	}
 
+	FinishMoveCommand();
+}
+
+void ATutorialTeamMemberActor::FinishMoveCommand()
+{
 	bHasMoveTarget = false;
 	if (AAIController* AIController = Cast<AAIController>(GetController()))
 	{
 		AIController->StopMovement();
+	}
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->StopMovementImmediately();
 	}
 	SnapToGround();
 	PlayTeamAnimation(bSelected ? ETeamMemberAnimState::AlertIdle : ETeamMemberAnimState::RelaxedIdle);

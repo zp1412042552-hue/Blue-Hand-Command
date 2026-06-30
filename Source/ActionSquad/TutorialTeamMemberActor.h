@@ -108,7 +108,7 @@ public:
 	float MovementSpeed = 180.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Movement")
-	float AcceptanceRadius = 18.0f;
+	float AcceptanceRadius = 65.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Movement")
 	float NavProjectionExtent = 120.0f;
@@ -138,6 +138,7 @@ private:
 	void LoadDefaultAssets();
 	void RefreshNameplate();
 	UAnimSequence* ResolveAnimation(ETeamMemberAnimState State) const;
+	void FinishMoveCommand();
 	void UpdateCommandMovement(float DeltaSeconds);
 	void UpdateMovementAnimation();
 };

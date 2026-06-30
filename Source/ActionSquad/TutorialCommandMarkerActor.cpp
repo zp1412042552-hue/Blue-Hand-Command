@@ -39,12 +39,13 @@ void ATutorialCommandMarkerActor::Tick(float DeltaSeconds)
 	const FColor RingColor = DisplayTarget == ESelectedTeamTarget::TeamB ? FColor(255, 180, 40) : FColor::Cyan;
 	const FVector Center = GetActorLocation() + MarkerNormal * 2.0f;
 	const float InnerRadius = FMath::Max(4.0f, RingRadius * FMath::Clamp(HoldProgress, 0.0f, 1.0f));
+	const FVector MarkerRight = FVector::CrossProduct(MarkerNormal, MarkerForward).GetSafeNormal();
 
-	DrawDebugCircle(World, Center, RingRadius, 64, RingColor, false, 0.0f, 0, 2.5f, FVector::ForwardVector, FVector::RightVector, false);
-	DrawDebugCircle(World, Center, InnerRadius, 48, FColor::White, false, 0.0f, 0, 1.5f, FVector::ForwardVector, FVector::RightVector, false);
+	DrawDebugCircle(World, Center, RingRadius, 64, RingColor, false, 0.0f, 0, 2.5f, MarkerForward, MarkerRight, false);
+	DrawDebugCircle(World, Center, InnerRadius, 48, FColor::White, false, 0.0f, 0, 1.5f, MarkerForward, MarkerRight, false);
 }
 
-void ATutorialCommandMarkerActor::ShowMarker(ESelectedTeamTarget Target, const FVector& Location, const FVector& SurfaceNormal, float Progress)
+void ATutorialCommandMarkerActor::ShowMarker(ESelectedTeamTarget Target, const FVector& Location, const FVector& SurfaceNormal, const FVector& AimDirection, float Progress)
 {
 	DisplayTarget = Target;
 	HoldProgress = Progress;
@@ -54,8 +55,18 @@ void ATutorialCommandMarkerActor::ShowMarker(ESelectedTeamTarget Target, const F
 		MarkerNormal = FVector::UpVector;
 	}
 
+	MarkerForward = FVector::VectorPlaneProject(AimDirection, MarkerNormal).GetSafeNormal();
+	if (MarkerForward.IsNearlyZero())
+	{
+		MarkerForward = FVector::VectorPlaneProject(FVector::ForwardVector, MarkerNormal).GetSafeNormal();
+	}
+	if (MarkerForward.IsNearlyZero())
+	{
+		MarkerForward = FVector::RightVector;
+	}
+
 	SetActorLocation(Location + MarkerNormal * 4.0f);
-	SetActorRotation(MarkerNormal.Rotation());
+	SetActorRotation(FRotationMatrix::MakeFromXZ(MarkerForward, MarkerNormal).Rotator());
 	SetActorHiddenInGame(false);
 
 	if (LabelText)
