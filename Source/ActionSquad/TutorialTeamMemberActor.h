@@ -110,6 +110,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Movement")
 	float AcceptanceRadius = 65.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Movement", meta = (ClampMin = "0.0", Units = "s"))
+	float LowSpeedStopSeconds = 0.35f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Movement")
 	float NavProjectionExtent = 120.0f;
 
@@ -141,6 +144,8 @@ private:
 	void FinishMoveCommand();
 	void UpdateCommandMovement(float DeltaSeconds);
 	void UpdateMovementAnimation();
+
+	float LowSpeedMoveSeconds = 0.0f;
 };
 
 UCLASS(Blueprintable)

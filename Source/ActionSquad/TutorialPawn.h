@@ -107,6 +107,7 @@ private:
 
 	void UpdateCommandPreview(float DeltaSeconds);
 	bool TraceCommandTarget(FHitResult& OutHit) const;
+	bool GetCommandAimRay(FVector& OutStart, FVector& OutDirection) const;
 	FVector GetCommandAimDirection() const;
 	bool IssueCommandAtHit(const FHitResult& Hit);
 	ESelectedTeamTarget GetMarkerTarget() const;

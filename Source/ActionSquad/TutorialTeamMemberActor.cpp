@@ -9,6 +9,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "NavigationSystem.h"
+#include "Navigation/PathFollowingComponent.h"
 #include "TeamNameplateWidget.h"
 #include "TutorialDoorActor.h"
 #include "UObject/ConstructorHelpers.h"
@@ -151,11 +152,13 @@ void ATutorialTeamMemberActor::MoveToCommandLocation(const FVector& WorldLocatio
 
 	MoveTargetLocation = TargetLocation;
 	bHasMoveTarget = true;
+	LowSpeedMoveSeconds = 0.0f;
 
 	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
 	{
 		Movement->MaxWalkSpeed = MovementSpeed;
 		Movement->MaxStepHeight = StepUpHeight;
+		Movement->StopMovementImmediately();
 	}
 
 	if (AAIController* AIController = Cast<AAIController>(GetController()))
@@ -327,17 +330,39 @@ void ATutorialTeamMemberActor::UpdateCommandMovement(float DeltaSeconds)
 
 	const float Distance = FVector::Dist2D(GetActorLocation(), MoveTargetLocation);
 	const float StopRadius = FMath::Max(AcceptanceRadius, GetCapsuleComponent() ? GetCapsuleComponent()->GetScaledCapsuleRadius() * 1.5f : AcceptanceRadius);
-	if (Distance > StopRadius)
+	if (Distance <= StopRadius)
 	{
+		FinishMoveCommand();
 		return;
 	}
 
-	FinishMoveCommand();
+	const AAIController* AIController = Cast<AAIController>(GetController());
+	if (AIController && AIController->GetMoveStatus() != EPathFollowingStatus::Moving && Distance <= StopRadius * 2.5f)
+	{
+		FinishMoveCommand();
+		return;
+	}
+
+	const float Speed2D = GetVelocity().Size2D();
+	if (Speed2D <= MovementSpeed * 0.08f)
+	{
+		LowSpeedMoveSeconds += FMath::Max(0.0f, DeltaSeconds);
+	}
+	else
+	{
+		LowSpeedMoveSeconds = 0.0f;
+	}
+
+	if (LowSpeedMoveSeconds >= LowSpeedStopSeconds && Distance <= StopRadius * 2.5f)
+	{
+		FinishMoveCommand();
+	}
 }
 
 void ATutorialTeamMemberActor::FinishMoveCommand()
 {
 	bHasMoveTarget = false;
+	LowSpeedMoveSeconds = 0.0f;
 	if (AAIController* AIController = Cast<AAIController>(GetController()))
 	{
 		AIController->StopMovement();
@@ -361,6 +386,10 @@ void ATutorialTeamMemberActor::UpdateMovementAnimation()
 	if (Speed2D > MovementSpeed * 0.2f)
 	{
 		PlayTeamAnimation(ETeamMemberAnimState::Walk);
+	}
+	else if (CurrentAnimState == ETeamMemberAnimState::Walk && LowSpeedMoveSeconds >= LowSpeedStopSeconds)
+	{
+		FinishMoveCommand();
 	}
 }
 

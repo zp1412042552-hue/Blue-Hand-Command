@@ -9,6 +9,7 @@
 #include "Materials/MaterialInterface.h"
 #include "MotionControllerComponent.h"
 #include "OculusXRHandComponent.h"
+#include "OculusXRInputFunctionLibrary.h"
 #include "TutorialCommandMarkerActor.h"
 #include "TutorialInstructionActor.h"
 #include "TutorialDoorActor.h"
@@ -246,7 +247,12 @@ void ATutorialPawn::HandleCommandGestureRecognized(ECommandGesture Gesture)
 void ATutorialPawn::UpdateCommandPreview(float DeltaSeconds)
 {
 	const ESelectedTeamTarget MarkerTarget = GetMarkerTarget();
-	if (MarkerTarget == ESelectedTeamTarget::None || bCommandIssuedSinceSelection)
+	const bool bOutsideRecognitionZone =
+		CommandGesture &&
+		CommandGesture->bUseRecognitionZone &&
+		!CommandGesture->bHandInsideRecognitionZone;
+
+	if (MarkerTarget == ESelectedTeamTarget::None || bCommandIssuedSinceSelection || bOutsideRecognitionZone)
 	{
 		PreviewHoldSeconds = 0.0f;
 		LastPreviewActor.Reset();
@@ -315,6 +321,42 @@ bool ATutorialPawn::TraceCommandTarget(FHitResult& OutHit) const
 		return false;
 	}
 
+	FVector Start = FVector::ZeroVector;
+	FVector Direction = FVector::ZeroVector;
+	if (!GetCommandAimRay(Start, Direction))
+	{
+		return false;
+	}
+
+	const FVector End = Start + Direction * CommandTraceDistance;
+
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(ActionSquadCommandTrace), false, this);
+	return World->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, QueryParams);
+}
+
+bool ATutorialPawn::GetCommandAimRay(FVector& OutStart, FVector& OutDirection) const
+{
+	if (RightHandMesh && RightHandMesh->GetSkinnedAsset())
+	{
+		const FName ThumbRootBone(*UOculusXRInputFunctionLibrary::GetBoneName(EOculusXRBone::Thumb_0));
+		const FName ThumbTipBone(*UOculusXRInputFunctionLibrary::GetBoneName(EOculusXRBone::Thumb_Tip));
+		const int32 RootBoneIndex = RightHandMesh->GetBoneIndex(ThumbRootBone);
+		const int32 TipBoneIndex = RightHandMesh->GetBoneIndex(ThumbTipBone);
+
+		if (RootBoneIndex != INDEX_NONE && TipBoneIndex != INDEX_NONE)
+		{
+			const FVector ThumbRootLocation = RightHandMesh->GetBoneLocation(ThumbRootBone);
+			const FVector ThumbTipLocation = RightHandMesh->GetBoneLocation(ThumbTipBone);
+			const FVector ThumbDirection = ThumbTipLocation - ThumbRootLocation;
+			if (ThumbDirection.SizeSquared() > FMath::Square(1.0f))
+			{
+				OutStart = ThumbTipLocation;
+				OutDirection = ThumbDirection.GetSafeNormal();
+				return true;
+			}
+		}
+	}
+
 	USceneComponent* TraceSource = RightHandTrackingRoot ? Cast<USceneComponent>(RightHandTrackingRoot) : nullptr;
 	if (!TraceSource || !TraceSource->IsRegistered())
 	{
@@ -326,22 +368,21 @@ bool ATutorialPawn::TraceCommandTarget(FHitResult& OutHit) const
 		return false;
 	}
 
-	const FVector Start = TraceSource->GetComponentLocation();
-	const FVector End = Start + TraceSource->GetForwardVector() * CommandTraceDistance;
-
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(ActionSquadCommandTrace), false, this);
-	return World->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, QueryParams);
+	OutStart = TraceSource->GetComponentLocation();
+	OutDirection = TraceSource->GetForwardVector();
+	return true;
 }
 
 FVector ATutorialPawn::GetCommandAimDirection() const
 {
-	USceneComponent* TraceSource = RightHandTrackingRoot ? Cast<USceneComponent>(RightHandTrackingRoot) : nullptr;
-	if (!TraceSource || !TraceSource->IsRegistered())
+	FVector Start = FVector::ZeroVector;
+	FVector Direction = FVector::ZeroVector;
+	if (GetCommandAimRay(Start, Direction))
 	{
-		TraceSource = Camera;
+		return Direction;
 	}
 
-	return TraceSource ? TraceSource->GetForwardVector() : GetActorForwardVector();
+	return GetActorForwardVector();
 }
 
 bool ATutorialPawn::IssueCommandAtHit(const FHitResult& Hit)
