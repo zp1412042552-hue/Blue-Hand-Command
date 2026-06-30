@@ -91,7 +91,7 @@ public:
 	bool bDrawRecognitionZone = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Recognition Zone", meta = (Units = "cm"))
-	FVector RecognitionZoneCenter = FVector(57.5f, 0.0f, 2.5f);
+	FVector RecognitionZoneCenter = FVector(17.5f, 0.0f, 2.5f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Recognition Zone", meta = (Units = "cm"))
 	FVector RecognitionZoneExtent = FVector(17.5f, 35.0f, 22.5f);
