@@ -34,6 +34,10 @@
 			]
 		},
 		{
+			"Name": "XRBase",
+			"Enabled": true
+		},
+		{
 			"Name": "Bridge",
 			"Enabled": false
 		},

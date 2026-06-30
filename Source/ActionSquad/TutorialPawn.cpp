@@ -4,6 +4,7 @@
 #include "CommandGestureComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "HeadMountedDisplayFunctionLibrary.h"
 #include "InputCoreTypes.h"
 #include "Materials/MaterialInterface.h"
 #include "MotionControllerComponent.h"
@@ -70,6 +71,7 @@ ATutorialPawn::ATutorialPawn()
 void ATutorialPawn::BeginPlay()
 {
 	Super::BeginPlay();
+	UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
 
 	if (CommandGesture)
 	{

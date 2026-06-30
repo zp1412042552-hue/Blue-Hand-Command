@@ -15,6 +15,7 @@ public class ActionSquad : ModuleRules
 			"InputCore",
 			"EnhancedInput",
 			"HeadMountedDisplay",
+			"XRBase",
 			"NavigationSystem",
 			"OculusHandPoseRecognition",
 			"OculusXRInput",

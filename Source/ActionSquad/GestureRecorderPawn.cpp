@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GesturePoseProfileSaveGame.h"
 #include "GestureRecorderScreenActor.h"
+#include "HeadMountedDisplayFunctionLibrary.h"
 #include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
@@ -64,6 +65,7 @@ AGestureRecorderPawn::AGestureRecorderPawn()
 void AGestureRecorderPawn::BeginPlay()
 {
 	Super::BeginPlay();
+	UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
 
 	UWorld* World = GetWorld();
 	if (World)

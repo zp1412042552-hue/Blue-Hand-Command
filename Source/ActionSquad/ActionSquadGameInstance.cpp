@@ -2,12 +2,14 @@
 
 #include "ActionSquad.h"
 #include "ActionSquadSaveGame.h"
+#include "HeadMountedDisplayFunctionLibrary.h"
 #include "Kismet/GameplayStatics.h"
 
 void UActionSquadGameInstance::Init()
 {
 	Super::Init();
 	ActionSquad::ApplyLowScalabilitySettings();
+	UHeadMountedDisplayFunctionLibrary::SetSpectatorScreenMode(ESpectatorScreenMode::Disabled);
 	LoadOrCreateSaveGame();
 }
 
