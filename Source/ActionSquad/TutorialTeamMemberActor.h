@@ -14,6 +14,8 @@ class ATutorialWeaponActor;
 class UWidgetComponent;
 class UTeamNameplateWidget;
 class USoundBase;
+class UMaterialInterface;
+class UMaterialInstanceDynamic;
 
 USTRUCT(BlueprintType)
 struct FTeamMemberAnimationSet
@@ -75,6 +77,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Action Squad|Team")
 	void PlayTeamAnimation(ETeamMemberAnimState NewState);
+
+	void PlayFireAnimationOnly();
 
 	UFUNCTION(BlueprintCallable, Category = "Action Squad|Team")
 	void MoveToCommandLocation(const FVector& WorldLocation);
@@ -147,6 +151,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Movement")
 	float StepUpHeight = 38.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Movement")
+	bool bAllowCommandMovement = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Door")
 	float DoorBreachDistance = 120.0f;
@@ -245,6 +252,7 @@ public:
 	TObjectPtr<ATutorialDoorActor> PendingBreachDoor;
 
 private:
+	void ConfigureCombatCollision();
 	void StartMoveToLocation(const FVector& WorldLocation, bool bClearPendingDoor);
 	void LoadDefaultAssets();
 	void RefreshNameplate();
@@ -285,4 +293,48 @@ class ACTIONSQUAD_API ATutorialTeamBActor : public ATutorialTeamMemberActor
 
 public:
 	ATutorialTeamBActor();
+};
+
+UCLASS(Blueprintable)
+class ACTIONSQUAD_API ATutorialEnemyActor : public ATutorialTeamMemberActor
+{
+	GENERATED_BODY()
+
+public:
+	ATutorialEnemyActor();
+
+	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
+	virtual void OnConstruction(const FTransform& Transform) override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Enemy")
+	bool bEnableStationaryCombat = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Enemy", meta = (ClampMin = "0.1", Units = "s"))
+	float StationaryFireInterval = 1.35f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Enemy", meta = (ClampMin = "0.0", Units = "cm"))
+	float StationarySightRange = 3600.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Enemy", meta = (Units = "cm"))
+	float TargetAimHeight = 72.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Enemy")
+	FLinearColor EnemyVisualTint = FLinearColor(1.08f, 1.08f, 1.08f, 1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Enemy", meta = (ClampMin = "0.0", ClampMax = "2.0"))
+	float EnemyTintStrength = 0.10f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Enemy")
+	TObjectPtr<UMaterialInterface> EnemyOverlayMaterial;
+
+private:
+	void ApplyEnemyDefaults();
+	void ApplyEnemyVisuals();
+	void UpdateStationaryCombat(float DeltaSeconds);
+	AActor* FindStationaryCombatTarget() const;
+	bool HasClearShotToTarget(const AActor* TargetActor, const FVector& TargetLocation) const;
+
+	float StationaryFireTimer = 0.0f;
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> EnemyMaterialInstances;
 };

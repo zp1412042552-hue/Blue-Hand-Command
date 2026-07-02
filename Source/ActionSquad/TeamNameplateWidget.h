@@ -18,11 +18,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action Squad|Nameplate")
 	void SetSelected(bool bInSelected);
 
+	UFUNCTION(BlueprintCallable, Category = "Action Squad|Nameplate")
+	void SetEnemy(bool bInEnemy);
+
+	UFUNCTION(BlueprintCallable, Category = "Action Squad|Nameplate")
+	void SetHealthPercent(float InHealthPercent, bool bInShowHealthBar);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Nameplate")
 	FText TeamLabel;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Nameplate")
 	bool bSelected = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Nameplate")
+	bool bEnemy = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Nameplate", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float HealthPercent = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Nameplate")
+	bool bShowHealthBar = false;
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;

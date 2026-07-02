@@ -31,6 +31,15 @@ public:
 	void SelectRecordSlotB();
 
 	UFUNCTION(BlueprintCallable, Category = "Action Squad|Gesture Recording")
+	void SelectRecordSlotAction();
+
+	UFUNCTION(BlueprintCallable, Category = "Action Squad|Gesture Recording")
+	void SelectRecordSlotProtectMe();
+
+	UFUNCTION(BlueprintCallable, Category = "Action Squad|Gesture Recording")
+	void SelectRecordSlotFreeAttack();
+
+	UFUNCTION(BlueprintCallable, Category = "Action Squad|Gesture Recording")
 	void StartRecordingSelectedSlot();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Components")
@@ -88,6 +97,10 @@ private:
 	void SavePose(ECommandGesture Gesture, const FFingerExtensionPose& Pose, const FHandPose& HandPose);
 	void UpdateScreenPrompt();
 	void ConfigureHandVisuals();
+	static bool IsRecordableGesture(ECommandGesture Gesture);
+	static FString GetPoseName(ECommandGesture Gesture);
+	static FText GetGestureTitle(ECommandGesture Gesture);
+	static FText GetGestureInstruction(ECommandGesture Gesture);
 	static FFingerExtensionPose DividePose(const FFingerExtensionPose& Pose, float Divisor);
 
 	float CountdownRemainingSeconds = 0.0f;

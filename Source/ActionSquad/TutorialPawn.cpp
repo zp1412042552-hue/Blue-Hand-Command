@@ -176,6 +176,7 @@ void ATutorialPawn::Tick(float DeltaSeconds)
 	UpdateGunPitchLocomotion(DeltaSeconds);
 	UpdateHandTouchFireInput(DeltaSeconds);
 	UpdateCommandPreview(DeltaSeconds);
+	UpdateSquadCommandState(DeltaSeconds);
 }
 
 void ATutorialPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -190,11 +191,15 @@ void ATutorialPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	PlayerInputComponent->BindKey(EKeys::One, IE_Pressed, this, &ATutorialPawn::TestSelectA);
 	PlayerInputComponent->BindKey(EKeys::Two, IE_Pressed, this, &ATutorialPawn::TestSelectB);
 	PlayerInputComponent->BindKey(EKeys::Three, IE_Pressed, this, &ATutorialPawn::TestMoveSelectedTeam);
+	PlayerInputComponent->BindKey(EKeys::Four, IE_Pressed, this, &ATutorialPawn::TestProtectMe);
+	PlayerInputComponent->BindKey(EKeys::Five, IE_Pressed, this, &ATutorialPawn::TestFreeAttack);
 	PlayerInputComponent->BindKey(EKeys::E, IE_Pressed, this, &ATutorialPawn::TestMoveSelectedTeam);
 }
 
 void ATutorialPawn::SelectTeam(ESelectedTeamTarget Target)
 {
+	SquadCommandMode = ESquadTacticalCommandMode::None;
+
 	const bool bSameTarget = CurrentSelectedTeam == Target;
 	if (bSameTarget && bCommandIssuedSinceSelection && !bCanRearmSameTeamCommand)
 	{
@@ -443,6 +448,48 @@ bool ATutorialPawn::FirePlayerWeapon()
 	return true;
 }
 
+void ATutorialPawn::StartProtectMeCommand()
+{
+	SquadCommandMode = ESquadTacticalCommandMode::ProtectMe;
+	ProtectMeRetargetTimer = 0.0f;
+	FreeAttackThinkTimer = 0.0f;
+	bTeamAAtProtectSpot = false;
+	bTeamBAtProtectSpot = false;
+	ClearPointCommandSelection();
+	HideCommandVisuals();
+
+	if (TeamA)
+	{
+		TeamA->SetSelected(false);
+		TeamA->StopCommandMovement();
+	}
+	if (TeamB)
+	{
+		TeamB->SetSelected(false);
+		TeamB->StopCommandMovement();
+	}
+}
+
+void ATutorialPawn::StartFreeAttackCommand()
+{
+	SquadCommandMode = ESquadTacticalCommandMode::FreeAttack;
+	ProtectMeRetargetTimer = 0.0f;
+	FreeAttackThinkTimer = 0.0f;
+	bTeamAAtProtectSpot = false;
+	bTeamBAtProtectSpot = false;
+	ClearPointCommandSelection();
+	HideCommandVisuals();
+
+	if (TeamA)
+	{
+		TeamA->SetSelected(false);
+	}
+	if (TeamB)
+	{
+		TeamB->SetSelected(false);
+	}
+}
+
 void ATutorialPawn::HandleCommandGestureRecognized(ECommandGesture Gesture)
 {
 	switch (Gesture)
@@ -455,6 +502,12 @@ void ATutorialPawn::HandleCommandGestureRecognized(ECommandGesture Gesture)
 		break;
 	case ECommandGesture::Action:
 		CommandSelectedTeamToPointedLocation();
+		break;
+	case ECommandGesture::Recall:
+		StartProtectMeCommand();
+		break;
+	case ECommandGesture::Watch:
+		StartFreeAttackCommand();
 		break;
 	default:
 		break;
@@ -717,6 +770,460 @@ void ATutorialPawn::HideCommandVisuals()
 	}
 }
 
+void ATutorialPawn::ClearPointCommandSelection()
+{
+	CurrentSelectedTeam = ESelectedTeamTarget::None;
+	PreviewHoldSeconds = 0.0f;
+	LastPreviewActor.Reset();
+	bHasContinuousFollowTarget = false;
+	bCommandIssuedSinceSelection = false;
+	bCanRearmSameTeamCommand = true;
+}
+
+void ATutorialPawn::UpdateSquadCommandState(float DeltaSeconds)
+{
+	switch (SquadCommandMode)
+	{
+	case ESquadTacticalCommandMode::ProtectMe:
+		UpdateProtectMeCommand(DeltaSeconds);
+		break;
+	case ESquadTacticalCommandMode::FreeAttack:
+		UpdateFreeAttackCommand(DeltaSeconds);
+		break;
+	default:
+		break;
+	}
+}
+
+void ATutorialPawn::UpdateProtectMeCommand(float DeltaSeconds)
+{
+	ProtectMeRetargetTimer -= FMath::Max(0.0f, DeltaSeconds);
+	if (ProtectMeRetargetTimer > 0.0f)
+	{
+		return;
+	}
+
+	ProtectMeRetargetTimer = FMath::Max(0.02f, ProtectMeRetargetInterval);
+
+	auto UpdateMember = [&](ATutorialTeamMemberActor* Member, bool bTeamA, bool& bAtProtectSpot)
+	{
+		if (!Member || Member->bDead)
+		{
+			return;
+		}
+
+		const FVector TargetLocation = GetProtectMeLocation(bTeamA);
+		const float AcceptanceDistance = FMath::Max(5.0f, ProtectMeAcceptanceDistance);
+		if (FVector::DistSquared2D(Member->GetActorLocation(), TargetLocation) > FMath::Square(AcceptanceDistance))
+		{
+			Member->MoveToCommandLocation(TargetLocation);
+			bAtProtectSpot = false;
+			return;
+		}
+
+		if (!bAtProtectSpot || Member->bHasMoveTarget)
+		{
+			Member->StopCommandMovement();
+			bAtProtectSpot = true;
+		}
+
+		const FVector Forward = GetActorForwardVector().GetSafeNormal2D();
+		const FVector Right = GetActorRightVector().GetSafeNormal2D();
+		FVector LookDirection = Forward + (bTeamA ? -Right : Right) * 0.85f;
+		if (LookDirection.Normalize())
+		{
+			Member->SetActorRotation(LookDirection.Rotation());
+		}
+		Member->PlayTeamAnimation(ETeamMemberAnimState::AlertIdle);
+	};
+
+	UpdateMember(TeamA, true, bTeamAAtProtectSpot);
+	UpdateMember(TeamB, false, bTeamBAtProtectSpot);
+}
+
+void ATutorialPawn::UpdateFreeAttackCommand(float DeltaSeconds)
+{
+	FreeAttackThinkTimer -= FMath::Max(0.0f, DeltaSeconds);
+	if (FreeAttackThinkTimer > 0.0f)
+	{
+		return;
+	}
+
+	FreeAttackThinkTimer = FMath::Max(0.02f, FreeAttackThinkInterval);
+	UpdateFreeAttackMember(TeamA, DeltaSeconds, true);
+	UpdateFreeAttackMember(TeamB, DeltaSeconds, false);
+}
+
+void ATutorialPawn::UpdateFreeAttackMember(ATutorialTeamMemberActor* Member, float DeltaSeconds, bool bTeamA)
+{
+	if (!Member || Member->bDead)
+	{
+		return;
+	}
+
+	ATutorialTeamMemberActor* Target = FindBestFreeAttackTarget(Member);
+	if (!Target)
+	{
+		if (Member->bHasMoveTarget)
+		{
+			Member->StopCommandMovement();
+		}
+		Member->PlayTeamAnimation(ETeamMemberAnimState::AlertIdle);
+		return;
+	}
+
+	FVector TargetLocation = FVector::ZeroVector;
+	if (HasClearShotToEnemy(Member, Target, &TargetLocation))
+	{
+		if (Member->bHasMoveTarget)
+		{
+			Member->StopCommandMovement();
+		}
+
+		FVector LookDirection = TargetLocation - Member->GetActorLocation();
+		LookDirection.Z = 0.0f;
+		if (LookDirection.Normalize())
+		{
+			Member->SetActorRotation(LookDirection.Rotation());
+		}
+		if (Member->CurrentAnimState != ETeamMemberAnimState::Fire)
+		{
+			Member->PlayFireAnimationOnly();
+		}
+		Member->FireWeaponAtLocation(TargetLocation);
+		return;
+	}
+
+	const FVector MoveLocation = GetFreeAttackMoveLocation(Member, Target);
+	if (FVector::DistSquared2D(Member->GetActorLocation(), MoveLocation) > FMath::Square(90.0f))
+	{
+		Member->MoveToCommandLocation(MoveLocation);
+	}
+	else
+	{
+		Member->PlayTeamAnimation(ETeamMemberAnimState::AlertIdle);
+	}
+}
+
+FVector ATutorialPawn::GetProtectMeLocation(bool bTeamA) const
+{
+	const FVector Forward = GetActorForwardVector().GetSafeNormal2D();
+	const FVector Right = GetActorRightVector().GetSafeNormal2D();
+	const FVector SideOffset = (bTeamA ? -Right : Right) * FMath::Max(0.0f, ProtectMeSideOffset);
+	const FVector BackOffset = -Forward * FMath::Max(0.0f, ProtectMeBackOffset);
+	return GetActorLocation() + SideOffset + BackOffset;
+}
+
+FVector ATutorialPawn::GetFreeAttackMoveLocation(const ATutorialTeamMemberActor* Member, const ATutorialTeamMemberActor* Target) const
+{
+	if (!Member || !Target)
+	{
+		return GetActorLocation();
+	}
+
+	FVector VantageLocation = FVector::ZeroVector;
+	if (FindFreeAttackVantageLocation(Member, Target, VantageLocation))
+	{
+		return VantageLocation;
+	}
+
+	const FVector PlayerLocation = GetActorLocation();
+	const FVector TargetLocation = Target->GetActorLocation();
+	FVector DirectionFromTarget = Member->GetActorLocation() - TargetLocation;
+	DirectionFromTarget.Z = 0.0f;
+	if (!DirectionFromTarget.Normalize())
+	{
+		DirectionFromTarget = (PlayerLocation - TargetLocation).GetSafeNormal2D();
+	}
+	if (DirectionFromTarget.IsNearlyZero())
+	{
+		DirectionFromTarget = -GetActorForwardVector().GetSafeNormal2D();
+	}
+
+	FVector SideDirection = FVector::CrossProduct(FVector::UpVector, DirectionFromTarget).GetSafeNormal();
+	if (Member->TeamRole == ETeamMemberRole::TeamA)
+	{
+		SideDirection *= -1.0f;
+	}
+
+	FVector DesiredLocation =
+		TargetLocation +
+		DirectionFromTarget * FMath::Max(100.0f, FreeAttackStandOffDistance) +
+		SideDirection * 120.0f;
+
+	const float MaxRadius = FMath::Max(100.0f, FreeAttackPlayerRadius);
+	FVector PlayerToDesired = DesiredLocation - PlayerLocation;
+	PlayerToDesired.Z = 0.0f;
+	const float DesiredDistance = PlayerToDesired.Size();
+	if (DesiredDistance > MaxRadius)
+	{
+		PlayerToDesired = PlayerToDesired.GetSafeNormal() * MaxRadius;
+		DesiredLocation = PlayerLocation + PlayerToDesired;
+		DesiredLocation.Z = TargetLocation.Z;
+	}
+
+	FVector ProjectedLocation = FVector::ZeroVector;
+	if (ProjectFreeAttackNavLocation(DesiredLocation, ProjectedLocation))
+	{
+		return ProjectedLocation;
+	}
+
+	return DesiredLocation;
+}
+
+bool ATutorialPawn::FindFreeAttackVantageLocation(const ATutorialTeamMemberActor* Member, const ATutorialTeamMemberActor* Target, FVector& OutLocation) const
+{
+	if (!Member || !Target || Target->bDead)
+	{
+		return false;
+	}
+
+	const FVector PlayerLocation = GetActorLocation();
+	const FVector TargetLocation = Target->GetActorLocation();
+	const float MaxPlayerRadius = FMath::Max(100.0f, FreeAttackPlayerRadius);
+	const float MaxPlayerRadiusSquared = FMath::Square(MaxPlayerRadius);
+	const float PreferredStandOff = FMath::Max(120.0f, FreeAttackStandOffDistance);
+	const float SearchRadii[] =
+	{
+		FMath::Max(260.0f, PreferredStandOff * 0.65f),
+		PreferredStandOff,
+		PreferredStandOff * 1.25f,
+		PreferredStandOff * 1.55f
+	};
+
+	float BestScore = TNumericLimits<float>::Max();
+	bool bFoundVantage = false;
+	constexpr int32 AngleSamples = 16;
+	const FVector MemberLocation = Member->GetActorLocation();
+	FVector PlayerRight = GetActorRightVector();
+	PlayerRight.Z = 0.0f;
+	PlayerRight.Normalize();
+
+	for (float Radius : SearchRadii)
+	{
+		for (int32 Index = 0; Index < AngleSamples; ++Index)
+		{
+			const float AngleRadians = (2.0f * PI * static_cast<float>(Index)) / static_cast<float>(AngleSamples);
+			const FVector Direction(FMath::Cos(AngleRadians), FMath::Sin(AngleRadians), 0.0f);
+			const FVector DesiredLocation = TargetLocation + Direction * Radius;
+
+			FVector CandidateLocation = FVector::ZeroVector;
+			if (!ProjectFreeAttackNavLocation(DesiredLocation, CandidateLocation))
+			{
+				continue;
+			}
+
+			if (FVector::DistSquared2D(CandidateLocation, PlayerLocation) > MaxPlayerRadiusSquared)
+			{
+				continue;
+			}
+
+			if (!HasClearShotFromLocationToEnemy(CandidateLocation, Target))
+			{
+				continue;
+			}
+
+			const bool bEnemyCanShootCandidate = HasEnemyLineOfFireToLocation(Target, CandidateLocation);
+			const float MemberTravelScore = FVector::DistSquared2D(MemberLocation, CandidateLocation) * 0.001f;
+			const float StandOffScore = FMath::Abs(FVector::Dist2D(CandidateLocation, TargetLocation) - PreferredStandOff) * 0.7f;
+			const float PlayerLeashScore = FVector::Dist2D(CandidateLocation, PlayerLocation) * 0.12f;
+			const float ExposureScore = bEnemyCanShootCandidate ? 180.0f : -120.0f;
+			const float DesiredSide = Member->TeamRole == ETeamMemberRole::TeamA ? -1.0f : 1.0f;
+			const float SideAlignment = FVector::DotProduct(CandidateLocation - PlayerLocation, PlayerRight) * DesiredSide;
+			const float TeamSideScore = -SideAlignment * 0.04f;
+			const float Score = MemberTravelScore + StandOffScore + PlayerLeashScore + ExposureScore + TeamSideScore;
+
+			if (Score < BestScore)
+			{
+				BestScore = Score;
+				OutLocation = CandidateLocation;
+				bFoundVantage = true;
+			}
+		}
+	}
+
+	return bFoundVantage;
+}
+
+bool ATutorialPawn::ProjectFreeAttackNavLocation(const FVector& DesiredLocation, FVector& OutLocation) const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	UNavigationSystemV1* NavSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+	if (!NavSystem)
+	{
+		return false;
+	}
+
+	FNavLocation ProjectedLocation;
+	const FVector Extent(160.0f, 160.0f, 260.0f);
+	if (!NavSystem->ProjectPointToNavigation(DesiredLocation, ProjectedLocation, Extent))
+	{
+		return false;
+	}
+
+	OutLocation = ProjectedLocation.Location;
+	return true;
+}
+
+ATutorialTeamMemberActor* ATutorialPawn::FindBestFreeAttackTarget(const ATutorialTeamMemberActor* Member) const
+{
+	UWorld* World = GetWorld();
+	if (!World || !Member)
+	{
+		return nullptr;
+	}
+
+	ATutorialTeamMemberActor* BestTarget = nullptr;
+	float BestScore = TNumericLimits<float>::Max();
+	const float MaxPlayerDistanceSquared = FMath::Square(FMath::Max(100.0f, FreeAttackPlayerRadius));
+	const FVector PlayerLocation = GetActorLocation();
+
+	for (TActorIterator<ATutorialTeamMemberActor> It(World); It; ++It)
+	{
+		ATutorialTeamMemberActor* Candidate = *It;
+		if (!Candidate || Candidate == Member || Candidate->TeamRole != ETeamMemberRole::Enemy || Candidate->bDead)
+		{
+			continue;
+		}
+
+		if (FVector::DistSquared2D(Candidate->GetActorLocation(), PlayerLocation) > MaxPlayerDistanceSquared)
+		{
+			continue;
+		}
+
+		const bool bHasClearShot = HasClearShotToEnemy(Member, Candidate);
+		const float MemberDistanceSquared = FVector::DistSquared2D(Candidate->GetActorLocation(), Member->GetActorLocation());
+		const float Score = MemberDistanceSquared + (bHasClearShot ? 0.0f : MaxPlayerDistanceSquared);
+		if (Score < BestScore)
+		{
+			BestScore = Score;
+			BestTarget = Candidate;
+		}
+	}
+
+	return BestTarget;
+}
+
+bool ATutorialPawn::HasClearShotToEnemy(const ATutorialTeamMemberActor* Member, const ATutorialTeamMemberActor* Target, FVector* OutTargetLocation) const
+{
+	if (!Member || !Target || Target->bDead)
+	{
+		return false;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	const FVector TargetLocation = Target->GetActorLocation() + FVector(0.0f, 0.0f, FreeAttackAimHeight);
+	if (OutTargetLocation)
+	{
+		*OutTargetLocation = TargetLocation;
+	}
+
+	const FVector TraceStart = Member->GetActorLocation() + FVector(0.0f, 0.0f, FreeAttackAimHeight);
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(ActionSquadFreeAttackSightTrace), false, Member);
+	if (Member->EquippedWeapon)
+	{
+		QueryParams.AddIgnoredActor(Member->EquippedWeapon);
+	}
+
+	FHitResult Hit;
+	if (!World->LineTraceSingleByChannel(Hit, TraceStart, TargetLocation, ECC_Visibility, QueryParams))
+	{
+		return true;
+	}
+
+	const AActor* HitActor = Hit.GetActor();
+	return HitActor == Target || (HitActor && HitActor->IsOwnedBy(Target));
+}
+
+bool ATutorialPawn::HasClearShotFromLocationToEnemy(const FVector& FromLocation, const ATutorialTeamMemberActor* Target, FVector* OutTargetLocation) const
+{
+	if (!Target || Target->bDead)
+	{
+		return false;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	const FVector TargetLocation = Target->GetActorLocation() + FVector(0.0f, 0.0f, FreeAttackAimHeight);
+	if (OutTargetLocation)
+	{
+		*OutTargetLocation = TargetLocation;
+	}
+
+	const FVector TraceStart = FromLocation + FVector(0.0f, 0.0f, FreeAttackAimHeight);
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(ActionSquadFreeAttackVantageTrace), false, this);
+	FHitResult Hit;
+	if (!World->LineTraceSingleByChannel(Hit, TraceStart, TargetLocation, ECC_Visibility, QueryParams))
+	{
+		return true;
+	}
+
+	const AActor* HitActor = Hit.GetActor();
+	return HitActor == Target || (HitActor && HitActor->IsOwnedBy(Target));
+}
+
+bool ATutorialPawn::HasEnemyLineOfFireToLocation(const ATutorialTeamMemberActor* Enemy, const FVector& TargetLocation) const
+{
+	if (!Enemy || Enemy->bDead)
+	{
+		return false;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	const FVector TraceStart = Enemy->GetActorLocation() + FVector(0.0f, 0.0f, FreeAttackAimHeight);
+	const FVector TraceEnd = TargetLocation + FVector(0.0f, 0.0f, FreeAttackAimHeight);
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(ActionSquadFreeAttackExposureTrace), false, Enemy);
+	if (Enemy->EquippedWeapon)
+	{
+		QueryParams.AddIgnoredActor(Enemy->EquippedWeapon);
+	}
+
+	FHitResult Hit;
+	return !World->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, QueryParams);
+}
+
+bool ATutorialPawn::HasAnyLivingEnemyInFreeAttackRange() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	const float MaxPlayerDistanceSquared = FMath::Square(FMath::Max(100.0f, FreeAttackPlayerRadius));
+	const FVector PlayerLocation = GetActorLocation();
+	for (TActorIterator<ATutorialTeamMemberActor> It(World); It; ++It)
+	{
+		const ATutorialTeamMemberActor* Candidate = *It;
+		if (Candidate && Candidate->TeamRole == ETeamMemberRole::Enemy && !Candidate->bDead &&
+			FVector::DistSquared2D(Candidate->GetActorLocation(), PlayerLocation) <= MaxPlayerDistanceSquared)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool ATutorialPawn::TraceCommandTarget(FHitResult& OutHit) const
 {
 	UWorld* World = GetWorld();
@@ -925,6 +1432,22 @@ void ATutorialPawn::TestMoveSelectedTeam()
 	if (CommandSelectedTeamToPointedLocation() && TutorialInstruction)
 	{
 		TutorialInstruction->NotifyGesture(ECommandGesture::Action);
+	}
+}
+
+void ATutorialPawn::TestProtectMe()
+{
+	if (CommandGesture)
+	{
+		CommandGesture->ForceRecognizeGesture(ECommandGesture::Recall);
+	}
+}
+
+void ATutorialPawn::TestFreeAttack()
+{
+	if (CommandGesture)
+	{
+		CommandGesture->ForceRecognizeGesture(ECommandGesture::Watch);
 	}
 }
 

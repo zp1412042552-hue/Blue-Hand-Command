@@ -60,6 +60,7 @@ def delete_asset_if_exists(asset_name: str):
 
 create_blueprint("BP_TeamA", "/Script/ActionSquad.TutorialTeamAActor")
 create_blueprint("BP_TeamB", "/Script/ActionSquad.TutorialTeamBActor")
+create_blueprint("BP_TutorialEnemy", "/Script/ActionSquad.TutorialEnemyActor")
 create_blueprint("BP_TutorialPawn", "/Script/ActionSquad.TutorialPawn")
 create_blueprint("BP_TutorialWeapon", "/Script/ActionSquad.TutorialWeaponActor")
 create_blueprint("BP_TutorialBallisticEffect", "/Script/ActionSquad.TutorialBallisticEffectActor")
@@ -72,6 +73,7 @@ delete_asset_if_exists("BP_TutorialFloorMarker")
 create_blueprint("BP_TutorialFloorMarker_A", "/Script/ActionSquad.TutorialFloorMarkerAActor", force_recreate=True)
 create_blueprint("BP_TutorialFloorMarker_B", "/Script/ActionSquad.TutorialFloorMarkerBActor", force_recreate=True)
 create_blueprint("BP_TutorialCompletionZone", "/Script/ActionSquad.TutorialCompletionZoneActor")
+create_blueprint("BP_TutorialSquadTeleportTarget", "/Script/ActionSquad.TutorialSquadTeleportTargetActor")
 
 unreal.EditorAssetLibrary.save_directory(ASSET_DIR)
 
@@ -132,6 +134,33 @@ def configure_bullet_mark_defaults():
         unreal.log("Configured BP_TutorialBulletMark radius -> 15cm")
     except Exception as exc:
         unreal.log_warning(f"Could not configure BP_TutorialBulletMark defaults: {exc}")
+
+
+def configure_enemy_defaults():
+    try:
+        enemy_class = load_generated_class(f"{ASSET_DIR}/BP_TutorialEnemy")
+        weapon_class = load_generated_class(f"{ASSET_DIR}/BP_TutorialWeapon")
+        ballistic_effect_class = load_generated_class(f"{ASSET_DIR}/BP_TutorialBallisticEffect")
+        bullet_mark_class = load_generated_class(f"{ASSET_DIR}/BP_TutorialBulletMark")
+        enemy_cdo = unreal.get_default_object(enemy_class)
+        enemy_cdo.set_editor_property("weapon_actor_class", weapon_class)
+        enemy_cdo.set_editor_property("muzzle_flash_effect_class", ballistic_effect_class)
+        enemy_cdo.set_editor_property("bullet_tracer_effect_class", ballistic_effect_class)
+        enemy_cdo.set_editor_property("impact_effect_class", ballistic_effect_class)
+        enemy_cdo.set_editor_property("bullet_mark_class", bullet_mark_class)
+        enemy_cdo.set_editor_property("spawn_weapon_bullet_marks", True)
+        enemy_cdo.set_editor_property("max_weapon_bullet_marks", 64)
+        enemy_cdo.set_editor_property("allow_command_movement", False)
+        enemy_cdo.set_editor_property("enable_stationary_combat", True)
+        enemy_cdo.set_editor_property("stationary_fire_interval", 1.35)
+        enemy_cdo.set_editor_property("stationary_sight_range", 3600.0)
+        enemy_cdo.set_editor_property("enemy_visual_tint", unreal.LinearColor(1.08, 1.08, 1.08, 1.0))
+        enemy_cdo.set_editor_property("enemy_tint_strength", 0.10)
+        enemy_cdo.set_editor_property("enemy_overlay_material", None)
+        unreal.EditorAssetLibrary.save_asset(f"{ASSET_DIR}/BP_TutorialEnemy")
+        unreal.log("Configured BP_TutorialEnemy weapon and stationary combat defaults")
+    except Exception as exc:
+        unreal.log_warning(f"Could not configure BP_TutorialEnemy defaults: {exc}")
 
 
 def spawn_named(label: str, class_path: str, location, rotation=(0.0, 0.0, 0.0)):
@@ -218,9 +247,11 @@ def place_tutorial_runtime_actors():
 if "-PlaceTutorialActors" in unreal.SystemLibrary.get_command_line():
     configure_bullet_mark_defaults()
     configure_tutorial_pawn_defaults()
+    configure_enemy_defaults()
     place_tutorial_runtime_actors()
     unreal.log("Tutorial blueprint assets and level placements are ready.")
 else:
     configure_bullet_mark_defaults()
     configure_tutorial_pawn_defaults()
+    configure_enemy_defaults()
     unreal.log("Tutorial blueprint assets are ready. Level placement was skipped.")

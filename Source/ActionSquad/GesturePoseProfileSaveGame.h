@@ -22,14 +22,41 @@ public:
 	bool bHasSelectB = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture")
+	bool bHasAction = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture")
+	bool bHasWatch = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture")
+	bool bHasRecall = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture")
 	FFingerExtensionPose SelectAPose;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture")
 	FFingerExtensionPose SelectBPose;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture")
+	FFingerExtensionPose ActionPose;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture")
+	FFingerExtensionPose WatchPose;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture")
+	FFingerExtensionPose RecallPose;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture")
 	FString SelectAEncodedPose;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture")
 	FString SelectBEncodedPose;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture")
+	FString ActionEncodedPose;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture")
+	FString WatchEncodedPose;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Gesture")
+	FString RecallEncodedPose;
 };

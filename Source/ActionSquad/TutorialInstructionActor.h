@@ -10,6 +10,7 @@ class ATutorialCompletionZoneActor;
 class ATutorialDoorActor;
 class ATutorialFloorMarkerActor;
 class ATutorialGestureDisplayActor;
+class ATutorialSquadTeleportTargetActor;
 class UTutorialCommandWidget;
 class UWidgetComponent;
 class USoundBase;
@@ -95,6 +96,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Tutorial")
 	TObjectPtr<ATutorialCompletionZoneActor> CompletionZone;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Tutorial")
+	TObjectPtr<ATutorialSquadTeleportTargetActor> StageTwoTeleportTarget;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Tutorial", meta = (ClampMin = "0.0", Units = "s"))
+	float StageTwoTransitionCountdownSeconds = 5.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Tutorial", meta = (ClampMin = "0.0", Units = "s"))
+	float StageTwoBlackFadeSeconds = 0.45f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Tutorial", meta = (ClampMin = "0.0", Units = "s"))
+	float StageTwoFadeInSeconds = 0.8f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Tutorial", meta = (ClampMin = "1.0", Units = "cm"))
 	float LocomotionTutorialForwardDistance = 80.0f;
 
@@ -152,6 +165,9 @@ private:
 	void ResolveGestureDisplayActor();
 	void ResolveTutorialTargets();
 	void UpdateObjectiveProgress();
+	void StartStageTwoTransition();
+	void UpdateStageTwoTransition(float DeltaSeconds);
+	void TeleportSquadToStageTwo();
 	void CompleteTutorial();
 	void UpdateTransform(float DeltaSeconds);
 	void UpdateGestureDisplayTransform();
@@ -167,4 +183,8 @@ private:
 	FVector StepStartPlayerLocation = FVector::ZeroVector;
 	bool bHasInitialTransformLock = false;
 	bool bHasStepStartPlayerLocation = false;
+	bool bStageTwoTransitionActive = false;
+	bool bWaitingForFreeAttackEnemiesDefeated = false;
+	float StageTwoTransitionRemainingSeconds = 0.0f;
+	int32 LastDisplayedCountdownSecond = INDEX_NONE;
 };

@@ -109,8 +109,14 @@ void UCommandGestureComponent::LoadRecordedGestureProfile()
 
 	bHasRecordedSelectAHandPose = false;
 	bHasRecordedSelectBHandPose = false;
+	bHasRecordedActionHandPose = false;
+	bHasRecordedWatchHandPose = false;
+	bHasRecordedRecallHandPose = false;
 	bHasRecordedSelectAFingerPose = false;
 	bHasRecordedSelectBFingerPose = false;
+	bHasRecordedActionFingerPose = false;
+	bHasRecordedWatchFingerPose = false;
+	bHasRecordedRecallFingerPose = false;
 
 	if (!Profile->SelectAEncodedPose.IsEmpty())
 	{
@@ -134,6 +140,42 @@ void UCommandGestureComponent::LoadRecordedGestureProfile()
 	{
 		RecordedSelectBFingerPose = Profile->SelectBPose;
 		bHasRecordedSelectBFingerPose = true;
+	}
+
+	if (!Profile->ActionEncodedPose.IsEmpty())
+	{
+		RecordedActionHandPose.PoseName = TEXT("Action");
+		RecordedActionHandPose.CustomEncodedPose = Profile->ActionEncodedPose;
+		bHasRecordedActionHandPose = RecordedActionHandPose.Decode();
+	}
+	if (Profile->bHasAction)
+	{
+		RecordedActionFingerPose = Profile->ActionPose;
+		bHasRecordedActionFingerPose = true;
+	}
+
+	if (!Profile->WatchEncodedPose.IsEmpty())
+	{
+		RecordedWatchHandPose.PoseName = TEXT("FreeAttack");
+		RecordedWatchHandPose.CustomEncodedPose = Profile->WatchEncodedPose;
+		bHasRecordedWatchHandPose = RecordedWatchHandPose.Decode();
+	}
+	if (Profile->bHasWatch)
+	{
+		RecordedWatchFingerPose = Profile->WatchPose;
+		bHasRecordedWatchFingerPose = true;
+	}
+
+	if (!Profile->RecallEncodedPose.IsEmpty())
+	{
+		RecordedRecallHandPose.PoseName = TEXT("ProtectMe");
+		RecordedRecallHandPose.CustomEncodedPose = Profile->RecallEncodedPose;
+		bHasRecordedRecallHandPose = RecordedRecallHandPose.Decode();
+	}
+	if (Profile->bHasRecall)
+	{
+		RecordedRecallFingerPose = Profile->RecallPose;
+		bHasRecordedRecallFingerPose = true;
 	}
 }
 
@@ -172,8 +214,44 @@ ECommandGesture UCommandGestureComponent::ClassifyHandPose(const FHandPose& Pose
 	bool bBestPassesFloor = false;
 	ECommandGesture BestGesture = ECommandGesture::None;
 
+	if (IsOpenHandForOrientationCommand(FingerPose) && (bHasRecordedWatchHandPose || bHasRecordedRecallHandPose))
+	{
+		const float OpenHandConfidence = ComputeOpenHandConfidence(FingerPose);
+		const float WatchWristConfidence = bHasRecordedWatchHandPose ? ComputeWristYawConfidence(RecordedWatchHandPose, Pose) : 0.0f;
+		const float RecallWristConfidence = bHasRecordedRecallHandPose ? ComputeWristYawConfidence(RecordedRecallHandPose, Pose) : 0.0f;
+		const ECommandGesture OrientationGesture =
+			WatchWristConfidence >= RecallWristConfidence ? ECommandGesture::Watch : ECommandGesture::Recall;
+		const float OrientationConfidence = FMath::Max(WatchWristConfidence, RecallWristConfidence);
+		const float SecondOrientationConfidence = FMath::Min(WatchWristConfidence, RecallWristConfidence);
+
+		if (OrientationConfidence >= OrientationCommandHandPoseConfidenceFloor &&
+			OpenHandConfidence >= OrientationCommandOpenHandConfidenceFloor &&
+			OrientationConfidence - SecondOrientationConfidence >= RecordedGestureConfidenceMargin)
+		{
+			if (OutBestConfidence)
+			{
+				*OutBestConfidence = OrientationConfidence * 0.82f + OpenHandConfidence * 0.18f;
+			}
+			if (OutBestError)
+			{
+				*OutBestError = 1.0f - OrientationConfidence;
+			}
+			if (OutBestFingerConfidence)
+			{
+				*OutBestFingerConfidence = OpenHandConfidence;
+			}
+			return OrientationGesture;
+		}
+	}
+
 	auto ConsiderGesture = [&](ECommandGesture Gesture, const FHandPose* RecordedHandPose, const FFingerExtensionPose* RecordedFingerPose)
 	{
+		if (!IsSelectionFingerPoseAllowed(Gesture, FingerPose))
+		{
+			return;
+		}
+
+		const bool bOrientationSensitiveCommand = Gesture == ECommandGesture::Watch || Gesture == ECommandGesture::Recall;
 		float HandConfidence = 0.0f;
 		float RawError = 0.0f;
 		if (RecordedHandPose)
@@ -187,10 +265,21 @@ ECommandGesture UCommandGestureComponent::ClassifyHandPose(const FHandPose& Pose
 			FingerConfidence = ComputeFingerPoseConfidence(*RecordedFingerPose, FingerPose);
 		}
 
-		const float Confidence = FMath::Max(HandConfidence, FingerConfidence);
-		const bool bPassesFloor =
-			HandConfidence >= RecordedHandPoseConfidenceFloor ||
-			FingerConfidence >= RecordedFingerPoseConfidenceFloor;
+		float Confidence = FMath::Max(HandConfidence, FingerConfidence);
+		bool bPassesFloor = HandConfidence >= RecordedHandPoseConfidenceFloor || FingerConfidence >= RecordedFingerPoseConfidenceFloor;
+		if (bOrientationSensitiveCommand)
+		{
+			const float WristConfidence = RecordedHandPose ? ComputeWristYawConfidence(*RecordedHandPose, Pose) : 0.0f;
+			const float OpenHandConfidence = ComputeOpenHandConfidence(FingerPose);
+			FingerConfidence = FMath::Max(FingerConfidence, OpenHandConfidence);
+			HandConfidence = WristConfidence;
+			RawError = 1.0f - WristConfidence;
+			Confidence = WristConfidence * 0.82f + FingerConfidence * 0.18f;
+			bPassesFloor =
+				IsOpenHandForOrientationCommand(FingerPose) &&
+				WristConfidence >= OrientationCommandHandPoseConfidenceFloor &&
+				FingerConfidence >= OrientationCommandOpenHandConfidenceFloor;
+		}
 
 		if (Confidence > BestConfidence)
 		{
@@ -223,6 +312,30 @@ ECommandGesture UCommandGestureComponent::ClassifyHandPose(const FHandPose& Pose
 			bHasRecordedSelectBFingerPose ? &RecordedSelectBFingerPose : nullptr);
 	}
 
+	if (bHasRecordedActionHandPose || bHasRecordedActionFingerPose)
+	{
+		ConsiderGesture(
+			ECommandGesture::Action,
+			bHasRecordedActionHandPose ? &RecordedActionHandPose : nullptr,
+			bHasRecordedActionFingerPose ? &RecordedActionFingerPose : nullptr);
+	}
+
+	if (bHasRecordedWatchHandPose || bHasRecordedWatchFingerPose)
+	{
+		ConsiderGesture(
+			ECommandGesture::Watch,
+			bHasRecordedWatchHandPose ? &RecordedWatchHandPose : nullptr,
+			bHasRecordedWatchFingerPose ? &RecordedWatchFingerPose : nullptr);
+	}
+
+	if (bHasRecordedRecallHandPose || bHasRecordedRecallFingerPose)
+	{
+		ConsiderGesture(
+			ECommandGesture::Recall,
+			bHasRecordedRecallHandPose ? &RecordedRecallHandPose : nullptr,
+			bHasRecordedRecallFingerPose ? &RecordedRecallFingerPose : nullptr);
+	}
+
 	if (OutBestConfidence)
 	{
 		*OutBestConfidence = BestConfidence;
@@ -238,6 +351,29 @@ ECommandGesture UCommandGestureComponent::ClassifyHandPose(const FHandPose& Pose
 
 	if (!bBestPassesFloor)
 	{
+		const bool bHasRecordedOrientationCommand = bHasRecordedWatchHandPose || bHasRecordedRecallHandPose;
+		if (!bHasRecordedOrientationCommand)
+		{
+			float BuiltInConfidence = 0.0f;
+			const ECommandGesture BuiltInGesture = ClassifyBuiltInFingerGesture(FingerPose, &BuiltInConfidence);
+			if (BuiltInGesture != ECommandGesture::None)
+			{
+				if (OutBestConfidence)
+				{
+					*OutBestConfidence = BuiltInConfidence;
+				}
+				if (OutBestError)
+				{
+					*OutBestError = 0.0f;
+				}
+				if (OutBestFingerConfidence)
+				{
+					*OutBestFingerConfidence = BuiltInConfidence;
+				}
+				return BuiltInGesture;
+			}
+		}
+
 		return ECommandGesture::None;
 	}
 
@@ -247,6 +383,50 @@ ECommandGesture UCommandGestureComponent::ClassifyHandPose(const FHandPose& Pose
 	}
 
 	return BestGesture;
+}
+
+ECommandGesture UCommandGestureComponent::ClassifyBuiltInFingerGesture(const FFingerExtensionPose& FingerPose, float* OutConfidence) const
+{
+	const bool bOpenHand =
+		FingerPose.Index >= OpenHandExtendedMin &&
+		FingerPose.Middle >= OpenHandExtendedMin &&
+		FingerPose.Ring >= OpenHandExtendedMin &&
+		FingerPose.Pinky >= OpenHandExtendedMin &&
+		FingerPose.Thumb >= OpenHandThumbExtendedMin;
+	if (bOpenHand)
+	{
+		const float Confidence =
+			(FingerPose.Thumb + FingerPose.Index + FingerPose.Middle + FingerPose.Ring + FingerPose.Pinky) / 5.0f;
+		if (OutConfidence)
+		{
+			*OutConfidence = FMath::Clamp(Confidence, 0.0f, 1.0f);
+		}
+		return ECommandGesture::Recall;
+	}
+
+	const bool bFist =
+		FingerPose.Index <= FistFingerCurledMax &&
+		FingerPose.Middle <= FistFingerCurledMax &&
+		FingerPose.Ring <= FistFingerCurledMax &&
+		FingerPose.Pinky <= FistFingerCurledMax &&
+		FingerPose.Thumb <= FistThumbCurledMax;
+	if (bFist)
+	{
+		const float AverageCurl =
+			((1.0f - FingerPose.Thumb) + (1.0f - FingerPose.Index) + (1.0f - FingerPose.Middle) +
+				(1.0f - FingerPose.Ring) + (1.0f - FingerPose.Pinky)) / 5.0f;
+		if (OutConfidence)
+		{
+			*OutConfidence = FMath::Clamp(AverageCurl, 0.0f, 1.0f);
+		}
+		return ECommandGesture::Watch;
+	}
+
+	if (OutConfidence)
+	{
+		*OutConfidence = 0.0f;
+	}
+	return ECommandGesture::None;
 }
 
 bool UCommandGestureComponent::PollMetaHandPose(FHandPose& OutHandPose, FFingerExtensionPose* OutFingerPose) const
@@ -395,6 +575,45 @@ FRotator UCommandGestureComponent::GetRecognizerWristRotator() const
 	return ComponentRotator;
 }
 
+bool UCommandGestureComponent::IsOpenHandForOrientationCommand(const FFingerExtensionPose& Pose) const
+{
+	return
+		Pose.Index >= OrientationCommandFingerExtendedMin &&
+		Pose.Middle >= OrientationCommandFingerExtendedMin &&
+		Pose.Ring >= OrientationCommandFingerExtendedMin &&
+		Pose.Pinky >= OrientationCommandPinkyExtendedMin &&
+		Pose.Thumb >= OrientationCommandThumbExtendedMin;
+}
+
+bool UCommandGestureComponent::IsSelectionFingerPoseAllowed(ECommandGesture Gesture, const FFingerExtensionPose& Pose) const
+{
+	if (Gesture != ECommandGesture::SelectA && Gesture != ECommandGesture::SelectB)
+	{
+		return true;
+	}
+
+	const int32 ExtendedCount = CountSelectionExtendedFingers(Pose);
+	if (Gesture == ECommandGesture::SelectA)
+	{
+		return ExtendedCount == 1 && Pose.Index >= SelectionCommandFingerExtendedMin;
+	}
+
+	return
+		ExtendedCount == 2 &&
+		Pose.Index >= SelectionCommandFingerExtendedMin &&
+		Pose.Middle >= SelectionCommandFingerExtendedMin;
+}
+
+int32 UCommandGestureComponent::CountSelectionExtendedFingers(const FFingerExtensionPose& Pose) const
+{
+	int32 Count = 0;
+	Count += Pose.Index >= SelectionCommandFingerExtendedMin ? 1 : 0;
+	Count += Pose.Middle >= SelectionCommandFingerExtendedMin ? 1 : 0;
+	Count += Pose.Ring >= SelectionCommandFingerExtendedMin ? 1 : 0;
+	Count += Pose.Pinky >= SelectionCommandFingerExtendedMin ? 1 : 0;
+	return Count;
+}
+
 float UCommandGestureComponent::Clamp01(float Value)
 {
 	return FMath::Clamp(Value, 0.0f, 1.0f);
@@ -410,4 +629,20 @@ float UCommandGestureComponent::ComputeFingerPoseConfidence(const FFingerExtensi
 			FMath::Abs(ReferencePose.Pinky - Pose.Pinky)) / 5.0f;
 
 	return FMath::Clamp(1.0f - AverageAbsoluteError, 0.0f, 1.0f);
+}
+
+float UCommandGestureComponent::ComputeOpenHandConfidence(const FFingerExtensionPose& Pose)
+{
+	const float FingerAverage =
+		(Clamp01(Pose.Index) + Clamp01(Pose.Middle) + Clamp01(Pose.Ring) + Clamp01(Pose.Pinky)) / 4.0f;
+	const float ThumbConfidence = FMath::Clamp((Clamp01(Pose.Thumb) - 0.25f) / 0.20f, 0.0f, 1.0f);
+	return FMath::Clamp(FingerAverage * 0.86f + ThumbConfidence * 0.14f, 0.0f, 1.0f);
+}
+
+float UCommandGestureComponent::ComputeWristYawConfidence(const FHandPose& ReferencePose, const FHandPose& Pose)
+{
+	const float YawError = FMath::Abs(FMath::FindDeltaAngleDegrees(
+		ReferencePose.GetRotator(ERecognizedBone::Wrist).Yaw,
+		Pose.GetRotator(ERecognizedBone::Wrist).Yaw));
+	return FMath::Clamp(1.0f - (YawError / 110.0f), 0.0f, 1.0f);
 }

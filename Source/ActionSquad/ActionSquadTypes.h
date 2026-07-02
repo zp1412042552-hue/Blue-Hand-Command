@@ -20,8 +20,8 @@ enum class ECommandGesture : uint8
 	SelectA UMETA(DisplayName = "Select Teammate A"),
 	SelectB UMETA(DisplayName = "Select Teammate B"),
 	Action UMETA(DisplayName = "Action"),
-	Watch UMETA(DisplayName = "Watch"),
-	Recall UMETA(DisplayName = "Recall")
+	Watch UMETA(DisplayName = "Free Attack"),
+	Recall UMETA(DisplayName = "Protect Me")
 };
 
 UENUM(BlueprintType)

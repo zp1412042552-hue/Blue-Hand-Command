@@ -29,6 +29,14 @@ enum class EGunPitchLocomotionState : uint8
 	MovingBackward
 };
 
+UENUM(BlueprintType)
+enum class ESquadTacticalCommandMode : uint8
+{
+	None,
+	ProtectMe,
+	FreeAttack
+};
+
 UCLASS(Blueprintable)
 class ACTIONSQUAD_API ATutorialPawn : public APawn
 {
@@ -53,6 +61,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Action Squad|Player Weapon")
 	bool FirePlayerWeapon();
+
+	UFUNCTION(BlueprintCallable, Category = "Action Squad|Team Command")
+	void StartProtectMeCommand();
+
+	UFUNCTION(BlueprintCallable, Category = "Action Squad|Team Command")
+	void StartFreeAttackCommand();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Components")
 	TObjectPtr<UCapsuleComponent> BodyCollision;
@@ -291,6 +305,30 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Command")
 	TSubclassOf<ATutorialCommandAimVisualActor> CommandAimVisualClass;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Team Command|Protect Me", meta = (ClampMin = "0.0", Units = "cm"))
+	float ProtectMeSideOffset = 55.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Team Command|Protect Me", meta = (ClampMin = "0.0", Units = "cm"))
+	float ProtectMeBackOffset = 35.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Team Command|Protect Me", meta = (ClampMin = "0.0", Units = "cm"))
+	float ProtectMeAcceptanceDistance = 32.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Team Command|Protect Me", meta = (ClampMin = "0.02", Units = "s"))
+	float ProtectMeRetargetInterval = 0.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Team Command|Free Attack", meta = (ClampMin = "100.0", Units = "cm"))
+	float FreeAttackPlayerRadius = 2000.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Team Command|Free Attack", meta = (ClampMin = "100.0", Units = "cm"))
+	float FreeAttackStandOffDistance = 650.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Team Command|Free Attack", meta = (ClampMin = "0.02", Units = "s"))
+	float FreeAttackThinkInterval = 0.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Squad|Team Command|Free Attack", meta = (ClampMin = "0.0", Units = "cm"))
+	float FreeAttackAimHeight = 72.0f;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Tutorial")
 	TObjectPtr<ATutorialTeamMemberActor> TeamA;
 
@@ -324,6 +362,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Player Movement")
 	float CurrentGunLocomotionSpeed = 0.0f;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Action Squad|Team Command")
+	ESquadTacticalCommandMode SquadCommandMode = ESquadTacticalCommandMode::None;
+
 private:
 	UFUNCTION()
 	void HandleCommandGestureRecognized(ECommandGesture Gesture);
@@ -333,6 +374,20 @@ private:
 	bool IsContinuousFollowGestureHeld(ESelectedTeamTarget MarkerTarget) const;
 	void StopSelectedTeamMovement(ESelectedTeamTarget MarkerTarget);
 	void HideCommandVisuals();
+	void ClearPointCommandSelection();
+	void UpdateSquadCommandState(float DeltaSeconds);
+	void UpdateProtectMeCommand(float DeltaSeconds);
+	void UpdateFreeAttackCommand(float DeltaSeconds);
+	void UpdateFreeAttackMember(ATutorialTeamMemberActor* Member, float DeltaSeconds, bool bTeamA);
+	FVector GetProtectMeLocation(bool bTeamA) const;
+	FVector GetFreeAttackMoveLocation(const ATutorialTeamMemberActor* Member, const ATutorialTeamMemberActor* Target) const;
+	bool FindFreeAttackVantageLocation(const ATutorialTeamMemberActor* Member, const ATutorialTeamMemberActor* Target, FVector& OutLocation) const;
+	bool ProjectFreeAttackNavLocation(const FVector& DesiredLocation, FVector& OutLocation) const;
+	ATutorialTeamMemberActor* FindBestFreeAttackTarget(const ATutorialTeamMemberActor* Member) const;
+	bool HasClearShotToEnemy(const ATutorialTeamMemberActor* Member, const ATutorialTeamMemberActor* Target, FVector* OutTargetLocation = nullptr) const;
+	bool HasClearShotFromLocationToEnemy(const FVector& FromLocation, const ATutorialTeamMemberActor* Target, FVector* OutTargetLocation = nullptr) const;
+	bool HasEnemyLineOfFireToLocation(const ATutorialTeamMemberActor* Enemy, const FVector& TargetLocation) const;
+	bool HasAnyLivingEnemyInFreeAttackRange() const;
 	bool TraceCommandTarget(FHitResult& OutHit) const;
 	bool GetCommandAimRay(FVector& OutStart, FVector& OutDirection) const;
 	FVector GetCommandAimDirection() const;
@@ -344,6 +399,8 @@ private:
 	void TestSelectA();
 	void TestSelectB();
 	void TestMoveSelectedTeam();
+	void TestProtectMe();
+	void TestFreeAttack();
 	void ConfigurePlayerWeaponComponent();
 	bool GetPlayerWeaponMuzzleTransform(FTransform& OutMuzzleTransform) const;
 	FTransform GetPlayerWeaponShellEjectionTransform(const FTransform& MuzzleTransform) const;
@@ -373,4 +430,8 @@ private:
 	bool bHandTouchFireArmed = true;
 	bool bCommandIssuedSinceSelection = false;
 	bool bCanRearmSameTeamCommand = true;
+	float ProtectMeRetargetTimer = 0.0f;
+	float FreeAttackThinkTimer = 0.0f;
+	bool bTeamAAtProtectSpot = false;
+	bool bTeamBAtProtectSpot = false;
 };

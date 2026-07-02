@@ -6,8 +6,11 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/WidgetComponent.h"
+#include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
 #include "NavigationSystem.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "TeamNameplateWidget.h"
@@ -31,7 +34,7 @@ ATutorialTeamMemberActor::ATutorialTeamMemberActor()
 	SoldierMesh = GetMesh();
 	SoldierMesh->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
 	SoldierMesh->SetRelativeLocation(FVector(0.0f, 0.0f, -92.0f));
-	SoldierMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ConfigureCombatCollision();
 
 	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
 	{
@@ -91,6 +94,7 @@ ATutorialTeamMemberActor::ATutorialTeamMemberActor()
 void ATutorialTeamMemberActor::BeginPlay()
 {
 	Super::BeginPlay();
+	ConfigureCombatCollision();
 	CurrentHealth = FMath::Max(1.0f, MaxHealth);
 	bDead = false;
 	SnapToGround();
@@ -124,6 +128,7 @@ void ATutorialTeamMemberActor::Tick(float DeltaSeconds)
 void ATutorialTeamMemberActor::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+	ConfigureCombatCollision();
 
 	if (bSnapToGroundOnConstruction)
 	{
@@ -151,6 +156,23 @@ void ATutorialTeamMemberActor::SetSelected(bool bInSelected)
 	if (bSelectionChanged)
 	{
 		PlayTeamAnimation(bSelected ? ETeamMemberAnimState::AlertIdle : ETeamMemberAnimState::RelaxedIdle);
+	}
+}
+
+void ATutorialTeamMemberActor::ConfigureCombatCollision()
+{
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		Capsule->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	}
+
+	if (SoldierMesh)
+	{
+		SoldierMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		SoldierMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
+		SoldierMesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+		SoldierMesh->SetGenerateOverlapEvents(false);
 	}
 }
 
@@ -186,9 +208,11 @@ float ATutorialTeamMemberActor::TakeDamage(
 		}
 
 		PlayTeamAnimation(ETeamMemberAnimState::Death);
+		RefreshNameplate();
 		return DamageAmount;
 	}
 
+	RefreshNameplate();
 	PlayTeamAnimation(ETeamMemberAnimState::HitReact);
 	if (UWorld* World = GetWorld())
 	{
@@ -213,6 +237,10 @@ void ATutorialTeamMemberActor::PlayTeamAnimation(ETeamMemberAnimState NewState)
 
 	if (CurrentAnimState == NewState && CurrentAnimation == Anim)
 	{
+		if (NewState == ETeamMemberAnimState::Fire)
+		{
+			FireWeaponForward();
+		}
 		return;
 	}
 
@@ -238,9 +266,29 @@ void ATutorialTeamMemberActor::PlayTeamAnimation(ETeamMemberAnimState NewState)
 	}
 }
 
+void ATutorialTeamMemberActor::PlayFireAnimationOnly()
+{
+	UAnimSequence* Anim = ResolveAnimation(ETeamMemberAnimState::Fire);
+	if (!SoldierMesh || !Anim)
+	{
+		return;
+	}
+
+	if (CurrentAnimState == ETeamMemberAnimState::Fire && CurrentAnimation == Anim)
+	{
+		return;
+	}
+
+	CurrentAnimState = ETeamMemberAnimState::Fire;
+	CurrentAnimation = Anim;
+	SoldierMesh->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+	SoldierMesh->SetAnimation(Anim);
+	SoldierMesh->Play(true);
+}
+
 void ATutorialTeamMemberActor::MoveToCommandLocation(const FVector& WorldLocation)
 {
-	if (bDead)
+	if (bDead || !bAllowCommandMovement)
 	{
 		return;
 	}
@@ -277,7 +325,7 @@ void ATutorialTeamMemberActor::StopCommandMovement()
 
 void ATutorialTeamMemberActor::StartMoveToLocation(const FVector& WorldLocation, bool bClearPendingDoor)
 {
-	if (bDead)
+	if (bDead || !bAllowCommandMovement)
 	{
 		return;
 	}
@@ -330,7 +378,7 @@ void ATutorialTeamMemberActor::StartMoveToLocation(const FVector& WorldLocation,
 
 void ATutorialTeamMemberActor::BreachDoor(ATutorialDoorActor* Door)
 {
-	if (!Door || bDead)
+	if (!Door || bDead || !bAllowCommandMovement)
 	{
 		return;
 	}
@@ -468,6 +516,16 @@ void ATutorialTeamMemberActor::RefreshNameplate()
 		return;
 	}
 
+	if (TeamRole == ETeamMemberRole::Enemy)
+	{
+		NameplateWidget->SetVisibility(false, true);
+		NameplateWidget->SetHiddenInGame(true);
+		return;
+	}
+
+	NameplateWidget->SetVisibility(true, true);
+	NameplateWidget->SetHiddenInGame(false);
+
 	if (!NameplateWidget->GetWidget())
 	{
 		NameplateWidget->InitWidget();
@@ -484,12 +542,12 @@ void ATutorialTeamMemberActor::RefreshNameplate()
 	{
 		Label = FText::FromString(TEXT("B"));
 	}
-	else if (TeamRole == ETeamMemberRole::Enemy)
-	{
-		Label = FText::FromString(TEXT("EN"));
-	}
 
 	Widget->SetTeamLabel(Label);
+	Widget->SetEnemy(false);
+	Widget->SetHealthPercent(
+		FMath::Clamp(CurrentHealth / FMath::Max(1.0f, MaxHealth), 0.0f, 1.0f),
+		false);
 	Widget->SetSelected(bSelected);
 }
 
@@ -930,4 +988,214 @@ ATutorialTeamAActor::ATutorialTeamAActor()
 ATutorialTeamBActor::ATutorialTeamBActor()
 {
 	TeamRole = ETeamMemberRole::TeamB;
+}
+
+ATutorialEnemyActor::ATutorialEnemyActor()
+{
+	TeamRole = ETeamMemberRole::Enemy;
+	bSelected = false;
+	bCanReceivePlayerWeaponDamage = true;
+	bAllowCommandMovement = false;
+	MovementSpeed = 0.0f;
+	WeaponDamage = 8.0f;
+	WeaponFireInterval = 0.35f;
+	NameplateHeight = 225.0f;
+	EnemyVisualTint = FLinearColor(1.08f, 1.08f, 1.08f, 1.0f);
+	EnemyTintStrength = 0.10f;
+	EnemyOverlayMaterial = nullptr;
+
+	ApplyEnemyDefaults();
+}
+
+void ATutorialEnemyActor::BeginPlay()
+{
+	Super::BeginPlay();
+	ApplyEnemyDefaults();
+	ApplyEnemyVisuals();
+	PlayTeamAnimation(ETeamMemberAnimState::AlertIdle);
+}
+
+void ATutorialEnemyActor::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	UpdateStationaryCombat(DeltaSeconds);
+}
+
+void ATutorialEnemyActor::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+	ApplyEnemyDefaults();
+	ApplyEnemyVisuals();
+}
+
+void ATutorialEnemyActor::ApplyEnemyDefaults()
+{
+	TeamRole = ETeamMemberRole::Enemy;
+	bSelected = false;
+	bAllowCommandMovement = false;
+	bCanReceivePlayerWeaponDamage = true;
+	if (NameplateWidget)
+	{
+		NameplateWidget->SetVisibility(false, true);
+		NameplateWidget->SetHiddenInGame(true);
+	}
+
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->StopMovementImmediately();
+		Movement->DisableMovement();
+		Movement->MaxWalkSpeed = 0.0f;
+	}
+}
+
+void ATutorialEnemyActor::ApplyEnemyVisuals()
+{
+	if (!SoldierMesh)
+	{
+		return;
+	}
+
+	EnemyMaterialInstances.Reset();
+	const int32 MaterialCount = SoldierMesh->GetNumMaterials();
+	for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
+	{
+		UMaterialInterface* SourceMaterial = SoldierMesh->GetMaterial(MaterialIndex);
+		if (!SourceMaterial)
+		{
+			continue;
+		}
+
+		UMaterialInstanceDynamic* MaterialInstance = SoldierMesh->CreateDynamicMaterialInstance(MaterialIndex, SourceMaterial);
+		if (!MaterialInstance)
+		{
+			continue;
+		}
+
+		static const FName BaseColorName(TEXT("BaseColor"));
+		static const FName ColorName(TEXT("Color"));
+		static const FName TintName(TEXT("Tint"));
+		static const FName BodyColorName(TEXT("BodyColor"));
+		static const FName SkinColorName(TEXT("SkinColor"));
+		static const FName TintStrengthName(TEXT("TintStrength"));
+		MaterialInstance->SetVectorParameterValue(BaseColorName, EnemyVisualTint);
+		MaterialInstance->SetVectorParameterValue(ColorName, EnemyVisualTint);
+		MaterialInstance->SetVectorParameterValue(TintName, EnemyVisualTint);
+		MaterialInstance->SetVectorParameterValue(BodyColorName, EnemyVisualTint);
+		MaterialInstance->SetVectorParameterValue(SkinColorName, EnemyVisualTint);
+		MaterialInstance->SetScalarParameterValue(TintStrengthName, EnemyTintStrength);
+		EnemyMaterialInstances.Add(MaterialInstance);
+	}
+
+	SoldierMesh->SetRenderCustomDepth(false);
+	SoldierMesh->SetCustomDepthStencilValue(0);
+	SoldierMesh->SetOverlayMaterial(nullptr);
+	SoldierMesh->SetOverlayMaterialMaxDrawDistance(0.0f);
+}
+
+void ATutorialEnemyActor::UpdateStationaryCombat(float DeltaSeconds)
+{
+	if (!bEnableStationaryCombat || bDead)
+	{
+		return;
+	}
+
+	StationaryFireTimer -= FMath::Max(0.0f, DeltaSeconds);
+	if (StationaryFireTimer > 0.0f)
+	{
+		return;
+	}
+
+	AActor* TargetActor = FindStationaryCombatTarget();
+	if (!TargetActor)
+	{
+		StationaryFireTimer = 0.25f;
+		return;
+	}
+
+	const FVector TargetLocation = TargetActor->GetActorLocation() + FVector(0.0f, 0.0f, TargetAimHeight);
+	FVector LookDirection = TargetLocation - GetActorLocation();
+	LookDirection.Z = 0.0f;
+	if (LookDirection.Normalize())
+	{
+		SetActorRotation(LookDirection.Rotation());
+	}
+
+	PlayTeamAnimation(ETeamMemberAnimState::Fire);
+	StationaryFireTimer = FMath::Max(0.1f, StationaryFireInterval);
+}
+
+AActor* ATutorialEnemyActor::FindStationaryCombatTarget() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	AActor* BestTarget = nullptr;
+	float BestDistanceSquared = FMath::Square(FMath::Max(0.0f, StationarySightRange));
+
+	for (TActorIterator<APawn> It(World); It; ++It)
+	{
+		APawn* Candidate = *It;
+		if (!Candidate || Candidate == this)
+		{
+			continue;
+		}
+
+		if (const ATutorialTeamMemberActor* TeamMember = Cast<ATutorialTeamMemberActor>(Candidate))
+		{
+			if (TeamMember->TeamRole == ETeamMemberRole::Enemy || TeamMember->bDead)
+			{
+				continue;
+			}
+		}
+
+		const float DistanceSquared = FVector::DistSquared(Candidate->GetActorLocation(), GetActorLocation());
+		if (DistanceSquared >= BestDistanceSquared)
+		{
+			continue;
+		}
+
+		const FVector TargetLocation = Candidate->GetActorLocation() + FVector(0.0f, 0.0f, TargetAimHeight);
+		if (!HasClearShotToTarget(Candidate, TargetLocation))
+		{
+			continue;
+		}
+
+		BestDistanceSquared = DistanceSquared;
+		BestTarget = Candidate;
+	}
+
+	return BestTarget;
+}
+
+bool ATutorialEnemyActor::HasClearShotToTarget(const AActor* TargetActor, const FVector& TargetLocation) const
+{
+	if (!TargetActor)
+	{
+		return false;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	const FVector TraceStart = GetActorLocation() + FVector(0.0f, 0.0f, TargetAimHeight);
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(ActionSquadEnemySightTrace), false, this);
+	if (EquippedWeapon)
+	{
+		QueryParams.AddIgnoredActor(EquippedWeapon);
+	}
+
+	FHitResult Hit;
+	if (!World->LineTraceSingleByChannel(Hit, TraceStart, TargetLocation, ECC_Visibility, QueryParams))
+	{
+		return true;
+	}
+
+	const AActor* HitActor = Hit.GetActor();
+	return HitActor == TargetActor || (HitActor && HitActor->IsOwnedBy(TargetActor));
 }

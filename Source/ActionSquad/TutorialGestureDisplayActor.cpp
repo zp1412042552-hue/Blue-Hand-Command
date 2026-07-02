@@ -146,8 +146,8 @@ void ATutorialGestureDisplayActor::BuildDefaultGestureDisplays()
 		TEXT("SelectA_OneFinger"),
 		TEXT("SelectB_TwoFinger"),
 		TEXT("Action_Point"),
-		TEXT("Watch_StopPalm"),
-		TEXT("Recall_FistPull")
+		TEXT("ProtectMe_PalmInOpenHand"),
+		TEXT("FreeAttack_PalmOutOpenHand")
 	};
 
 	for (const TCHAR* Name : Names)
